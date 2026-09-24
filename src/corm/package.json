@@ -1,0 +1,12 @@
+{
+  "$schema": "https://www.schemastore.org/package.json",
+  "name": "corm",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.27.0",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "main": "dist/index.js"
+}

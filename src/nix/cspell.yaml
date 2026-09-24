@@ -1,0 +1,59 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/streetsidesoftware/cspell/refs/heads/main/cspell.schema.json
+useGitignore: true
+version: "0.2"
+language: en
+ignoreRegExpList:
+  - "https?://\\S+"
+  - "sha256-[A-Za-z0-9+/=]+"
+  - "Q[0-9]_[A-Z0-9_]+"
+ignoreWords:
+  - pkgs
+  - pname
+  - stdenv
+  - patchelf
+  - ltrimstr
+  - direnv
+  - esbuild
+  - nixfmt
+  - mdbook
+  - taplo
+  - cachix
+  - langservers
+  - markdownignore
+  - vitest
+  - qwen
+  - gemma
+  - gguf
+  - mmproj
+  - unsloth
+  - bartowski
+  - llama
+  - moe
+  - fate
+  - bwrap
+  - bubblewrap
+  - bun2nix
+  - fetchgit
+  - argv0
+  - makeWrapper
+  - modelcontextprotocol
+  - openrouter
+  - deepseek
+  - morgan
+  - cyanheads
+  - tsconfig
+  - narHash
+  - huggingface
+  - cuda
+  - nixpkgs
+  - nixos
+  - fetchurl
+  - tmpfs
+  - chdir
+  - netlink
+  - mmap
+  - ubatch
+  - dont
+  - toolsets
+  - nvidiactl
+  - modeset

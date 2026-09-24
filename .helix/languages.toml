@@ -1,0 +1,92 @@
+[language-server]
+nil = { command = "nil" }
+taplo = { command = "taplo", args = ["lsp", "stdio"] }
+yaml-language-server = { command = "yaml-language-server", args = ["--stdio"] }
+marksman = { command = "marksman", args = ["server"] }
+vscode-css-language-server = { command = "vscode-css-language-server", args = [
+  "--stdio",
+], config = { provideFormatter = true, css = { validate = { enable = true } } } }
+vscode-html-language-server = { command = "vscode-html-language-server", args = [
+  "--stdio",
+], config = { provideFormatter = true } }
+vscode-json-language-server = { command = "vscode-json-language-server", args = [
+  "--stdio",
+], config = { json = { validate = { enable = true } } } }
+biome = { command = "biome", args = ["lsp-proxy"] }
+typescript-language-server = { command = "typescript-language-server", args = [
+  "--stdio",
+] }
+
+[[language]]
+name = "nix"
+auto-format = true
+formatter = { command = "nixfmt", args = ["--filename", "default.nix"] }
+language-servers = ["nil"]
+
+[[language]]
+name = "markdown"
+auto-format = true
+formatter = { command = "prettier", args = ["--parser", "markdown"] }
+language-servers = ["marksman"]
+
+[[language]]
+name = "toml"
+auto-format = true
+language-servers = ["taplo"]
+
+[[language]]
+name = "yaml"
+auto-format = true
+formatter = { command = "prettier", args = ["--parser", "yaml"] }
+language-servers = ["yaml-language-server"]
+
+[[language]]
+name = "json"
+auto-format = true
+formatter = { command = "prettier", args = ["--parser", "json"] }
+language-servers = ["vscode-json-language-server"]
+
+[[language]]
+name = "html"
+auto-format = true
+formatter = { command = "prettier", args = ["--parser", "html"] }
+language-servers = ["vscode-html-language-server"]
+
+[[language]]
+name = "css"
+auto-format = true
+formatter = { command = "prettier", args = ["--parser", "css"] }
+language-servers = ["vscode-css-language-server"]
+
+[[language]]
+name = "jsonc"
+auto-format = true
+formatter = { command = "prettier", args = [
+  "--parser",
+  "jsonc",
+  "--trailing-comma",
+  "none",
+] }
+language-servers = ["vscode-json-language-server"]
+
+[[language]]
+name = "typescript"
+auto-format = true
+formatter = { command = "biome", args = [
+  "check",
+  "--write",
+  "--stdin-file-path",
+  "index.ts",
+] }
+language-servers = ["typescript-language-server", "biome"]
+
+[[language]]
+name = "javascript"
+auto-format = true
+formatter = { command = "biome", args = [
+  "check",
+  "--write",
+  "--stdin-file-path",
+  "index.js",
+] }
+language-servers = ["typescript-language-server", "biome"]

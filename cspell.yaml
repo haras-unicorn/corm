@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/streetsidesoftware/cspell/refs/heads/main/cspell.schema.json
+useGitignore: true
+version: "0.2"
+language: en
+ignorePaths:
+  - "flake.nix"
+  - "flake.lock"
+  - "pnpm-lock.yaml"
+  - "**/CHANGELOG.md"
+ignoreWords:
+  - haras
+  - unminified
+  - esbuild
+  - nixfmt
+  - pkgs
+  - cuda
+  - nixos
+  - bwrap
+  - inlines

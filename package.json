@@ -1,0 +1,18 @@
+{
+  "$schema": "https://www.schemastore.org/package.json",
+  "name": "corm-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.27.0",
+  "dependencies": {
+    "corm": "workspace:*"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.14",
+    "esbuild": "^0.28.2",
+    "typescript": "^6.0.3",
+    "typescript-language-server": "^6.0.0",
+    "vitest": "^5.0.1"
+  }
+}

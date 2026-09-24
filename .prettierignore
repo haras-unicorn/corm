@@ -1,0 +1,13 @@
+flake.lock
+pnpm-lock.yaml
+**/CHANGELOG.md
+.direnv
+dist
+node_modules
+result
+**/*.ts
+**/*.tsx
+**/*.js
+**/*.jsx
+**/*.mjs
+**/*.cjs
