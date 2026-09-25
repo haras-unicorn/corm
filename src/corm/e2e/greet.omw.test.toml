@@ -1,0 +1,12 @@
+[endpoint]
+requests = [{ model = "morgan-fetch", messages = [{ content = "say hi" }] }]
+
+[providers.gpu]
+turns = [{ content = "hi" }]
+
+[assertions.morgan]
+outcome = "asserted"
+events = [
+  { kind = "inbound", event = "endpoint-message" },
+  { kind = "call", op = "chat" },
+]

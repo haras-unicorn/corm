@@ -17,3 +17,18 @@ ignoreWords:
   - nixos
   - bwrap
   - inlines
+  - freetoken
+  - nixpkgs
+  - bubblewrap
+  - fetchhf
+  - passthru
+  - huggingface
+  - gguf
+  - pyproject
+  - virtualenv
+  - multimodal
+  - mmproj
+  - oneshot
+  - sentencepiece
+  - qwen
+  - flashinfer
