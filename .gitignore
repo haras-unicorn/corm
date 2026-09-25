@@ -165,7 +165,11 @@ vite.config.ts.timestamp-*
 # -----------------------------------------------------------------------------
 
 .env
+# NOTE: doesn't get picked up by Node.gitignore because here they are symlinks
 node_modules
-
-# mdbook build output
-docs/book
+/docs/book
+/src/corm/e2e/omw.test.dump.json
+.corm-bench-config.toml
+.corm-bench-result.toml
+.corm.container.json
+.corm-aichat.yaml

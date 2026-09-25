@@ -1,0 +1,30 @@
+[endpoint]
+requests = [
+  { model = "corm", session_id = "corm", messages = [
+    { content = "use echo" },
+  ] },
+]
+
+[providers.gpu]
+turns = [
+  { tool_call = { id = "call-1", name = "corm__echo", arguments = '{"input":"hi"}' } },
+  { content = "done" },
+]
+
+[memory.corm]
+"corm-state" = "{}"
+
+[tooling.filesystem]
+tools = [{ name = "echo", description = "echo back", input_schema = {} }]
+tool_calls = [{ name = "echo", result = "hi" }]
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "inbound", event = "endpoint-message" },
+  { kind = "call", op = "chat_stream" },
+  { kind = "call", op = "call_tool" },
+  { kind = "inbound", event = "tool-result" },
+  { kind = "call", op = "chat_stream" },
+  { kind = "inbound", event = "chat-end" },
+]

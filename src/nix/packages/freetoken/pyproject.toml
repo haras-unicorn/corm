@@ -1,0 +1,63 @@
+[project]
+name = "freetoken-engine"
+version = "0.1.3"
+description = "Nix workspace manifest pinning the FreeToken engine runtime (ft CLI)."
+requires-python = ">=3.12,<3.13"
+# Mirrors install.sh from FlashML-org/FreeToken: the v0.1.3 runtime wheel, its
+# matching prebuilt CUDA 13.0 kernel-cache wheel, and the flashinfer pieces that
+# ship prebuilt kernels so nothing JIT-compiles at runtime.
+dependencies = [
+  "freetoken[accel] @ https://github.com/FlashML-org/FreeToken/releases/download/v0.1.3/freetoken-0.1.3-cp312-cp312-manylinux_2_27_x86_64.whl",
+  "freetoken-kernel-cache @ https://github.com/FlashML-org/FreeToken/releases/download/v0.1.3/freetoken_kernel_cache-0.1.3%2Bcu130-py3-none-linux_x86_64.whl",
+  "flashinfer-python==0.6.18.post1",
+  "flashinfer-cubin==0.6.18.post1",
+  "flashinfer-jit-cache==0.6.18.post1",
+]
+
+# The project is a virtual lock-only root: uv2nix installs the dependencies into
+# a virtualenv and never builds this manifest.
+[tool.uv]
+package = false
+
+# The CUDA wheels live on dedicated indexes that also mirror stale copies of
+# common deps (e.g. the PyTorch index serves a hash-less jinja2). Indexes are
+# therefore `explicit` and only the packages that actually need them are sourced
+# from them; everything else resolves from PyPI.
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[[tool.uv.index]]
+name = "flashinfer"
+url = "https://flashinfer.ai/whl"
+explicit = true
+
+[[tool.uv.index]]
+name = "flashinfer-cu130"
+url = "https://flashinfer.ai/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu130" }
+torchvision = { index = "pytorch-cu130" }
+triton = { index = "pytorch-cu130" }
+cuda-toolkit = { index = "pytorch-cu130" }
+nvidia-cublas = { index = "pytorch-cu130" }
+nvidia-cuda-cupti = { index = "pytorch-cu130" }
+nvidia-cuda-nvrtc = { index = "pytorch-cu130" }
+nvidia-cuda-runtime = { index = "pytorch-cu130" }
+nvidia-cudnn-cu13 = { index = "pytorch-cu130" }
+nvidia-cufft = { index = "pytorch-cu130" }
+nvidia-cufile = { index = "pytorch-cu130" }
+nvidia-curand = { index = "pytorch-cu130" }
+nvidia-cusolver = { index = "pytorch-cu130" }
+nvidia-cusparse = { index = "pytorch-cu130" }
+nvidia-cusparselt-cu13 = { index = "pytorch-cu130" }
+nvidia-nccl-cu13 = { index = "pytorch-cu130" }
+nvidia-nvjitlink = { index = "pytorch-cu130" }
+nvidia-nvshmem-cu13 = { index = "pytorch-cu130" }
+nvidia-nvtx = { index = "pytorch-cu130" }
+flashinfer-python = { index = "flashinfer" }
+flashinfer-cubin = { index = "flashinfer" }
+flashinfer-jit-cache = { index = "flashinfer-cu130" }

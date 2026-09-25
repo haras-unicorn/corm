@@ -1,54 +1,80 @@
-/// <reference path="./omw.d.ts" />
+import { createCormLogger } from "./lib/log";
+import type { CormOmw } from "./lib/omw";
+import { createCormConfigManager } from "./services/config";
+import type { CormContext } from "./services/context";
+import { createCormHandlesManager } from "./services/handles";
+import { createCormMachine } from "./services/machine";
+import { createCormHandlerRegistrar } from "./services/registrar";
+import { createCormStateManager } from "./services/state";
+import { createCormTooling } from "./services/tooling";
 
-import { buildSystemPrompt } from "./identity";
-import { collectTools, createResponder } from "./brain";
+const globalOmw = omw as CormOmw;
+const logger = createCormLogger(globalOmw.host);
 
-const MODEL = "morgan-fetch";
+logger.info("corm starting");
 
-const toolSet = collectTools();
-omw.host.log("info", `loaded ${toolSet.tools.length} tools`);
-const respond = createResponder(toolSet);
-const lifecycle = omw.host.subscribeLifecycle();
-const endpoint = omw.host.subscribeEndpoint(MODEL);
+const handleManager = createCormHandlesManager(globalOmw);
+const configManager = createCormConfigManager(globalOmw);
+const stateManager = createCormStateManager(globalOmw);
 
-omw.host.log("info", `morgan fetch online as "${MODEL}"`);
+const context: CormContext = {
+  handles: handleManager.load(),
+  config: configManager.load(),
+  tooling: createCormTooling(handleManager.load()),
+  logger,
+};
 
-let running = true;
-while (running) {
-  let event: OmwEvent;
+const registrar = createCormHandlerRegistrar(context);
+const machine = createCormMachine(context, stateManager.load(), registrar);
+
+logger.info("corm ready");
+
+while (true) {
+  let event: OmwEvent | null = null;
   try {
-    event = omw.host.recv();
+    event = globalOmw.host.recv();
   } catch (error) {
-    omw.host.log("debug", `recv: ${String(error)}`);
+    const message = (error as Error).message;
+    logger.warn(`failed waiting for events: ${message}`);
     continue;
   }
 
-  switch (event.kind) {
-    case "endpoint-message": {
-      const { session, messages } = event.payload;
-      const reply = respond([
-        { role: "system", content: buildSystemPrompt() },
-        ...messages,
-      ]);
-      omw.host.streamEndpoint(session, { content: reply });
-      omw.host.streamEndpoint(session, { finish_reason: "stop" });
-      break;
+  logger.trace(`recv ${event.kind}`);
+
+  try {
+    machine.handle(event);
+  } catch (error) {
+    const message = (error as Error).message;
+    logger.warn(`failed handling event '${event.kind}': ${message}`);
+    continue;
+  }
+
+  if (event.kind === "reload" || event.kind === "shutdown") {
+    logger.info(`corm ${event.kind}: releasing managers`);
+
+    try {
+      stateManager.release(event);
+    } catch (error) {
+      const message = (error as Error).message;
+      logger.error(`failed releasing state manager: ${message}`);
     }
 
-    case "error":
-      omw.host.log("error", event.payload);
-      break;
+    try {
+      handleManager.release(event);
+    } catch (error) {
+      const message = (error as Error).message;
+      logger.error(`failed releasing handle manager: ${message}`);
+    }
 
-    case "reload":
-    case "shutdown":
-      running = false;
-      break;
+    try {
+      configManager.release(event);
+    } catch (error) {
+      const message = (error as Error).message;
+      logger.error(`failed releasing config manager: ${message}`);
+    }
 
-    default:
-      break;
+    break;
   }
 }
 
-omw.host.unsubscribeEndpoint(endpoint);
-omw.host.unsubscribeLifecycle(lifecycle);
-omw.host.log("info", "morgan fetch offline");
+logger.info("corm stopped");

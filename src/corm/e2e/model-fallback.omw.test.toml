@@ -1,0 +1,21 @@
+[endpoint]
+requests = [
+  { model = "corm", session_id = "corm", messages = [
+    { content = "hi" },
+  ] },
+]
+
+[providers.gpu]
+models = ["mock-model"]
+turns = [{ content = "hello" }]
+
+[memory.corm]
+"corm-config" = { model = "" }
+"corm-state" = "{}"
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "inbound", event = "endpoint-message" },
+  { kind = "call", op = "chat_stream", detail = { model = "^mock-model$" } },
+]

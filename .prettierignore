@@ -1,13 +1,5 @@
 flake.lock
 pnpm-lock.yaml
 **/CHANGELOG.md
-.direnv
-dist
-node_modules
-result
-**/*.ts
-**/*.tsx
-**/*.js
-**/*.jsx
-**/*.mjs
-**/*.cjs
+src/corm/omw.d.ts
+src/corm/e2e/omw.test.base.json

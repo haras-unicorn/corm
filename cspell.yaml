@@ -17,3 +17,47 @@ ignoreWords:
   - nixos
   - bwrap
   - inlines
+  - freetoken
+  - nixpkgs
+  - bubblewrap
+  - fetchhf
+  - passthru
+  - huggingface
+  - gguf
+  - pyproject
+  - virtualenv
+  - multimodal
+  - mmproj
+  - oneshot
+  - sentencepiece
+  - qwen
+  - flashinfer
+  - openrouter
+  - aichat
+  - taplo
+  - occamy
+  - scriptable
+  - ggml
+  - fetchgguf
+  - safetensors
+  - ISTA
+  - attrset
+  - fetchurl
+  - cacert
+  - WASI
+  - workstream
+  - tunables
+  - nspawn
+  - toplevel
+  - gcroots
+  - ubatch
+  - nuon
+  - virtualisation
+  - cmdline
+  - gcroot
+  - mlock
+  - mdbook
+  - rhai
+  - deepseek
+  - sandboxed
+  - znver

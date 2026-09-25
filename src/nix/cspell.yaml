@@ -6,6 +6,7 @@ ignoreRegExpList:
   - "https?://\\S+"
   - "sha256-[A-Za-z0-9+/=]+"
   - "Q[0-9]_[A-Z0-9_]+"
+  - "-D[A-Z_]+"
 ignoreWords:
   - pkgs
   - pname
@@ -39,11 +40,14 @@ ignoreWords:
   - modelcontextprotocol
   - openrouter
   - deepseek
-  - morgan
   - cyanheads
   - tsconfig
   - narHash
   - huggingface
+  - gutenberg
+  - miserables
+  - cristo
+  - moby
   - cuda
   - nixpkgs
   - nixos
@@ -57,3 +61,92 @@ ignoreWords:
   - toolsets
   - nvidiactl
   - modeset
+  - freetoken
+  - appimage
+  - opencode
+  - archlinux
+  - omarchy
+  - flakehub
+  - codeberg
+  - npmjs
+  - pypi
+  - keygen
+  - fetchhf
+  - chatbox
+  - journalctl
+  - passthru
+  - safetensors
+  - accio
+  - occamy
+  - numpy
+  - sentencepiece
+  - PYTHONPATH
+  - oneshot
+  - multimodal
+  - ints
+  - pipefail
+  - outtype
+  - MEMLOCK
+  - rhai
+  - pyproject
+  - flashinfer
+  - cubin
+  - libtorch
+  - libcudart
+  - libcuda
+  - libcufile
+  - ldconfig
+  - rdma
+  - sglang
+  - torchvision
+  - numba
+  - nccl
+  - cublas
+  - cupti
+  - nvrtc
+  - cudnn
+  - cufft
+  - cufile
+  - curand
+  - cusolver
+  - cusparse
+  - cusparselt
+  - nvjitlink
+  - nvshmem
+  - nvtx
+  - venv
+  - nspawn
+  - runpath
+  - tunables
+  - aichat
+  - reqwest
+  - saxpy
+  - virtualisation
+  - nvcc
+  - cudart
+  - cccl
+  - spawnp
+  - coreutils
+  - binutils
+  - fileset
+  - ggml
+  - Niko
+  - archs
+  - cudatoolkit
+  - libcublas
+  - pyyaml
+  - tqdm
+  - psutil
+  - znver
+  - fopen
+  - removeprefix
+  - removesuffix
+  - foldl
+  - findall
+  - nspawn
+  - toplevel
+  - SIGRTMIN
+  - cmdline
+  - esac
+  - rustflags
+  - elfutils

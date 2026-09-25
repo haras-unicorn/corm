@@ -2,8 +2,10 @@
 useGitignore: true
 version: "0.2"
 language: en
+ignorePaths:
+  - "./e2e/omw.test.base.json"
+  - "./omw.d.ts"
 ignoreWords:
-  - morgan
   - openrouter
   - deepseek
   - qwen
