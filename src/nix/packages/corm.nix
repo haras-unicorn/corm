@@ -131,7 +131,16 @@
       corm = pkgs.stdenv.mkDerivation {
         pname = "corm";
         version = "0.1.0";
-        src = self;
+        src = lib.fileset.toSource {
+          root = ../../..;
+          fileset = lib.fileset.unions [
+            ../../../package.json
+            ../../../pnpm-workspace.yaml
+            ../../../tsconfig.json
+            ../../../src/corm/package.json
+            ../../../src/corm/src
+          ];
+        };
 
         nativeBuildInputs = [
           pkgs.esbuild
@@ -139,6 +148,7 @@
 
         buildPhase = ''
           runHook preBuild
+          ln -s ${nodeModules}/lib/src/corm/node_modules src/corm/node_modules
           esbuild src/corm/src/index.ts \
             --bundle \
             --platform=neutral \
@@ -157,7 +167,7 @@
         '';
 
         meta = {
-          description = "Corm is the brain of Morgan Fetch.";
+          description = "Corm is a local-first omw agent distribution for NixOS.";
           homepage = "https://github.com/haras-unicorn/corm";
           license = lib.licenses.mit;
         };

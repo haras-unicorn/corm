@@ -1,7 +1,6 @@
-import type { CormHandles } from "./handles";
+import type { CormContext } from "./context";
 import registry from "./registry";
 import type {
-  CormGlobalState,
   CormMaterializedTaskSpec,
   CormOutcome,
   CormTask,
@@ -15,41 +14,30 @@ export interface CormHandlerRegistrar {
   create(task: CormTask): CormHandler;
 }
 
-export const createCormHandlerRegistrar = (
-  handles: CormHandles,
-  globalState: CormGlobalState,
-) =>
-  new RegistryCormHandlerRegistrar(
-    handles,
-    globalState,
-  ) as CormHandlerRegistrar;
+export const createCormHandlerRegistrar = (context: CormContext) =>
+  new RegistryCormHandlerRegistrar(context) as CormHandlerRegistrar;
 
 export interface CormHandlerFactory {
   kind(): string;
 
   should(event: OmwEvent): CormTaskSpec | undefined;
 
-  new (
-    handles: CormHandles,
-    globalState: CormGlobalState,
-    id: string,
-    taskState: CormTaskState,
-  ): CormHandler;
+  new (context: CormContext, id: string, taskState: CormTaskState): CormHandler;
 }
 
 export interface CormHandler {
+  accepts(event: OmwEvent): boolean;
+
   handle(event: OmwEvent): CormOutcome;
 }
 
 class RegistryCormHandlerRegistrar {
   private _factories: CormHandlerFactory[];
-  private _handles: CormHandles;
-  private _globalState: CormGlobalState;
+  private _context: CormContext;
 
-  constructor(handles: CormHandles, globalState: CormGlobalState) {
+  constructor(context: CormContext) {
     this._factories = [...registry];
-    this._handles = handles;
-    this._globalState = globalState;
+    this._context = context;
   }
 
   public should(event: OmwEvent) {
@@ -66,6 +54,6 @@ class RegistryCormHandlerRegistrar {
       throw new Error(`unknown factory kind ${task.kind}`);
     }
 
-    return new factory(this._handles, this._globalState, task.id, task.state);
+    return new factory(this._context, task.id, task.state);
   }
 }

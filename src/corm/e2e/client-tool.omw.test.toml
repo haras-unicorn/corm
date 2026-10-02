@@ -1,8 +1,10 @@
 [endpoint]
-requests = [{ model = "corm", messages = [{ content = "say hi" }] }]
+requests = [{ model = "corm", messages = [{ content = "use a client tool" }] }]
 
 [providers.gpu]
-turns = [{ content = "hi" }]
+turns = [
+  { tool_call = { id = "call-1", name = "client__thing", arguments = "{}" } },
+]
 
 [memory.corm]
 "corm-state" = "{}"
@@ -11,6 +13,6 @@ turns = [{ content = "hi" }]
 outcome = "asserted"
 events = [
   { kind = "inbound", event = "endpoint-message" },
-  { kind = "call", op = "^chat", detail = { model = "^corm$" } },
+  { kind = "call", op = "^chat" },
   { kind = "inbound", event = "chat-end" },
 ]

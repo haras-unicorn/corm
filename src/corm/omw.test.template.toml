@@ -1,11 +1,13 @@
-[[agents]]
-name = "morgan-fetch"
+[agents.corm]
 runtime = "js"
-script = "dist/index.js"
+script = "src/corm/dist/index.js"
 
 [endpoint]
 kind = "mock"
 requests = []
+
+[memory.corm.corm-config]
+model = "model"
 
 [providers.cpu]
 kind = "mock"
@@ -17,7 +19,7 @@ kind = "mock"
 models = []
 turns = []
 
-[providers.openrouter]
+[providers.remote]
 kind = "mock"
 models = []
 turns = []
@@ -53,6 +55,15 @@ type = "string"
 description = "If provided, returns only the last N lines of the file"
 type = "number"
 
+[tooling.filesystem.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["content"]
+type = "object"
+
+[tooling.filesystem.tools.output_schema.properties.content]
+type = "string"
+
 [[tooling.filesystem.tools]]
 description = "Read the complete contents of a file from the file system as text. Handles various text encodings and provides detailed error messages if the file cannot be read. Use this tool when you need to examine the contents of a single file. Use the 'head' parameter to read only the first N lines of a file, or the 'tail' parameter to read only the last N lines of a file. Operates on the file as text regardless of extension. Only works within allowed directories."
 name = "read_text_file"
@@ -74,6 +85,15 @@ type = "string"
 description = "If provided, returns only the last N lines of the file"
 type = "number"
 
+[tooling.filesystem.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["content"]
+type = "object"
+
+[tooling.filesystem.tools.output_schema.properties.content]
+type = "string"
+
 [[tooling.filesystem.tools]]
 description = "Read an image or audio file. Returns the base64 encoded data and MIME type. Only works within allowed directories."
 name = "read_media_file"
@@ -85,6 +105,30 @@ required = ["path"]
 type = "object"
 
 [tooling.filesystem.tools.input_schema.properties.path]
+type = "string"
+
+[tooling.filesystem.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["content"]
+type = "object"
+
+[tooling.filesystem.tools.output_schema.properties.content]
+type = "array"
+
+[tooling.filesystem.tools.output_schema.properties.content.items]
+additionalProperties = false
+required = ["type", "data", "mimeType"]
+type = "object"
+
+[tooling.filesystem.tools.output_schema.properties.content.items.properties.data]
+type = "string"
+
+[tooling.filesystem.tools.output_schema.properties.content.items.properties.mimeType]
+type = "string"
+
+[tooling.filesystem.tools.output_schema.properties.content.items.properties.type]
+enum = ["image", "audio", "blob"]
 type = "string"
 
 [[tooling.filesystem.tools]]
@@ -105,6 +149,15 @@ type = "array"
 [tooling.filesystem.tools.input_schema.properties.paths.items]
 type = "string"
 
+[tooling.filesystem.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["content"]
+type = "object"
+
+[tooling.filesystem.tools.output_schema.properties.content]
+type = "string"
+
 [[tooling.filesystem.tools]]
 description = "Create a new file or completely overwrite an existing file with new content. Use with caution as it will overwrite existing files without warning. Handles text content with proper encoding. Only works within allowed directories."
 name = "write_file"
@@ -119,6 +172,15 @@ type = "object"
 type = "string"
 
 [tooling.filesystem.tools.input_schema.properties.path]
+type = "string"
+
+[tooling.filesystem.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["content"]
+type = "object"
+
+[tooling.filesystem.tools.output_schema.properties.content]
 type = "string"
 
 [[tooling.filesystem.tools]]
@@ -155,6 +217,15 @@ type = "string"
 [tooling.filesystem.tools.input_schema.properties.path]
 type = "string"
 
+[tooling.filesystem.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["content"]
+type = "object"
+
+[tooling.filesystem.tools.output_schema.properties.content]
+type = "string"
+
 [[tooling.filesystem.tools]]
 description = "Create a new directory or ensure a directory exists. Can create multiple nested directories in one operation. If the directory already exists, this operation will succeed silently. Perfect for setting up directory structures for projects or ensuring required paths exist. Only works within allowed directories."
 name = "create_directory"
@@ -168,6 +239,15 @@ type = "object"
 [tooling.filesystem.tools.input_schema.properties.path]
 type = "string"
 
+[tooling.filesystem.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["content"]
+type = "object"
+
+[tooling.filesystem.tools.output_schema.properties.content]
+type = "string"
+
 [[tooling.filesystem.tools]]
 description = "Get a detailed listing of all files and directories in a specified path. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is essential for understanding directory structure and finding specific files within a directory. Only works within allowed directories."
 name = "list_directory"
@@ -179,6 +259,15 @@ required = ["path"]
 type = "object"
 
 [tooling.filesystem.tools.input_schema.properties.path]
+type = "string"
+
+[tooling.filesystem.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["content"]
+type = "object"
+
+[tooling.filesystem.tools.output_schema.properties.content]
 type = "string"
 
 [[tooling.filesystem.tools]]
@@ -198,6 +287,15 @@ type = "string"
 default = "name"
 description = "Sort entries by name or size"
 enum = ["name", "size"]
+type = "string"
+
+[tooling.filesystem.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["content"]
+type = "object"
+
+[tooling.filesystem.tools.output_schema.properties.content]
 type = "string"
 
 [[tooling.filesystem.tools]]
@@ -220,6 +318,15 @@ type = "string"
 [tooling.filesystem.tools.input_schema.properties.path]
 type = "string"
 
+[tooling.filesystem.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["content"]
+type = "object"
+
+[tooling.filesystem.tools.output_schema.properties.content]
+type = "string"
+
 [[tooling.filesystem.tools]]
 description = "Move or rename files and directories. Can move files between directories and rename them in a single operation. If the destination exists, the operation will fail. Works across different directories and can be used for simple renaming within the same directory. Both source and destination must be within allowed directories."
 name = "move_file"
@@ -234,6 +341,15 @@ type = "object"
 type = "string"
 
 [tooling.filesystem.tools.input_schema.properties.source]
+type = "string"
+
+[tooling.filesystem.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["content"]
+type = "object"
+
+[tooling.filesystem.tools.output_schema.properties.content]
 type = "string"
 
 [[tooling.filesystem.tools]]
@@ -259,6 +375,15 @@ type = "string"
 [tooling.filesystem.tools.input_schema.properties.pattern]
 type = "string"
 
+[tooling.filesystem.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["content"]
+type = "object"
+
+[tooling.filesystem.tools.output_schema.properties.content]
+type = "string"
+
 [[tooling.filesystem.tools]]
 description = "Retrieve detailed metadata about a file or directory. Returns comprehensive information including size, creation time, last modified time, permissions, and type. This tool is perfect for understanding file characteristics without reading the actual content. Only works within allowed directories."
 name = "get_file_info"
@@ -272,6 +397,15 @@ type = "object"
 [tooling.filesystem.tools.input_schema.properties.path]
 type = "string"
 
+[tooling.filesystem.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["content"]
+type = "object"
+
+[tooling.filesystem.tools.output_schema.properties.content]
+type = "string"
+
 [[tooling.filesystem.tools]]
 description = "Returns the list of directories that this server is allowed to access. Subdirectories within these allowed directories are also accessible. Use this to understand which directories and their nested paths are available before trying to access files."
 name = "list_allowed_directories"
@@ -281,6 +415,15 @@ name = "list_allowed_directories"
 type = "object"
 
 [tooling.filesystem.tools.input_schema.properties]
+
+[tooling.filesystem.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["content"]
+type = "object"
+
+[tooling.filesystem.tools.output_schema.properties.content]
+type = "string"
 
 [tooling.git]
 initial_resource_list = []
@@ -326,6 +469,87 @@ default = false
 description = "Stage only modified and deleted files (skip untracked files)."
 type = "boolean"
 
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["success", "stagedFiles", "totalFiles", "status"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.stagedFiles]
+description = "Files that were successfully staged."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.stagedFiles.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.status]
+additionalProperties = false
+description = "Repository status after staging files."
+required = [
+  "current_branch",
+  "staged_changes",
+  "unstaged_changes",
+  "untracked_files",
+  "conflicted_files",
+  "is_clean",
+]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.status.properties.conflicted_files]
+description = "Files with conflicts."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.status.properties.conflicted_files.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.status.properties.current_branch]
+description = "Current branch name after staging."
+
+[[tooling.git.tools.output_schema.properties.status.properties.current_branch.anyOf]]
+type = "string"
+
+[[tooling.git.tools.output_schema.properties.status.properties.current_branch.anyOf]]
+type = "null"
+
+[tooling.git.tools.output_schema.properties.status.properties.is_clean]
+description = "Whether working directory is clean (ready to commit)."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.status.properties.staged_changes]
+description = "All staged changes after this operation."
+type = "object"
+
+[tooling.git.tools.output_schema.properties.status.properties.staged_changes.additionalProperties]
+
+[tooling.git.tools.output_schema.properties.status.properties.staged_changes.propertyNames]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.status.properties.unstaged_changes]
+description = "Remaining unstaged changes."
+type = "object"
+
+[tooling.git.tools.output_schema.properties.status.properties.unstaged_changes.additionalProperties]
+
+[tooling.git.tools.output_schema.properties.status.properties.unstaged_changes.propertyNames]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.status.properties.untracked_files]
+description = "Remaining untracked files."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.status.properties.untracked_files.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.totalFiles]
+description = "Total number of files staged."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
 [[tooling.git.tools]]
 description = "Show line-by-line authorship information for a file, displaying who last modified each line and when. For large files, use startLine/endLine to limit output."
 name = "git_blame"
@@ -361,6 +585,59 @@ type = "string"
 description = "Start line number (1-indexed)."
 maximum = 9007199254740991
 minimum = 1
+type = "integer"
+
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["success", "filePath", "lines", "totalLines"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.filePath]
+description = "The file that was blamed."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.lines]
+description = "Array of blame information for each line."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.lines.items]
+additionalProperties = false
+required = ["lineNumber", "commitHash", "author", "timestamp", "content"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.lines.items.properties.author]
+description = "Author who last modified this line."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.lines.items.properties.commitHash]
+description = "Full commit hash of the last change to this line."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.lines.items.properties.content]
+description = "The actual content/text of this line."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.lines.items.properties.lineNumber]
+description = "Line number in the file (1-indexed)."
+maximum = 9007199254740991
+minimum = 1
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.lines.items.properties.timestamp]
+description = "Unix timestamp of the commit that last modified this line."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.totalLines]
+description = "Total number of lines in the output."
+maximum = 9007199254740991
+minimum = -9007199254740991
 type = "integer"
 
 [[tooling.git.tools]]
@@ -445,6 +722,65 @@ description = "Starting point (commit/branch) for new branch creation."
 minLength = 1
 type = "string"
 
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["success", "mode"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.branches]
+description = "List of branches (for list mode)."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.branches.items]
+additionalProperties = false
+required = ["name", "current", "commitHash"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.branches.items.properties.ahead]
+description = "Commits ahead of upstream."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.branches.items.properties.behind]
+description = "Commits behind upstream."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.branches.items.properties.commitHash]
+description = "Commit hash the branch points to."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.branches.items.properties.current]
+description = "True if this is the current branch."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.branches.items.properties.name]
+description = "Branch name."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.branches.items.properties.upstream]
+description = "Upstream branch name if configured."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.currentBranch]
+description = "Name of current branch."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.message]
+description = "Success message for create/delete/rename modes."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.mode]
+enum = ["list", "create", "delete", "rename", "show-current"]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
+
 [[tooling.git.tools]]
 description = "Gather git history context (commits, tags) and structured review instructions to support LLM-driven changelog analysis. Changelog file should be read separately; this tool provides the supporting git data and analysis framework. Pass one or more review types to control what kind of analysis to perform."
 name = "git_changelog_analyze"
@@ -499,6 +835,117 @@ type = "string"
 description = 'Only include git history since this tag (e.g., "v1.2.0"). Narrows the analysis window.'
 type = "string"
 
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["success", "reviewTypes", "gitContext", "reviewInstructions"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.gitContext]
+additionalProperties = false
+description = "Git history context for changelog cross-referencing."
+required = ["currentBranch", "totalCommitsFetched", "commits", "tags"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.gitContext.properties.commits]
+description = "Recent commits for cross-referencing."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.gitContext.properties.commits.items]
+additionalProperties = false
+required = ["hash", "subject", "author", "timestamp"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.gitContext.properties.commits.items.properties.author]
+description = "Commit author."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.gitContext.properties.commits.items.properties.hash]
+description = "Short commit hash."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.gitContext.properties.commits.items.properties.refs]
+description = "Tags or branches at this commit."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.gitContext.properties.commits.items.properties.refs.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.gitContext.properties.commits.items.properties.subject]
+description = "Commit subject line."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.gitContext.properties.commits.items.properties.timestamp]
+description = "Unix timestamp."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.gitContext.properties.currentBranch]
+description = "Current branch name."
+
+[[tooling.git.tools.output_schema.properties.gitContext.properties.currentBranch.anyOf]]
+type = "string"
+
+[[tooling.git.tools.output_schema.properties.gitContext.properties.currentBranch.anyOf]]
+type = "null"
+
+[tooling.git.tools.output_schema.properties.gitContext.properties.tags]
+description = "Repository tags for release context."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.gitContext.properties.tags.items]
+additionalProperties = false
+required = ["name", "commit"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.gitContext.properties.tags.items.properties.commit]
+description = "Commit hash the tag points to."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.gitContext.properties.tags.items.properties.message]
+description = "Annotated tag message."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.gitContext.properties.tags.items.properties.name]
+description = "Tag name."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.gitContext.properties.tags.items.properties.timestamp]
+description = "Tag creation timestamp."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.gitContext.properties.totalCommitsFetched]
+description = "Number of commits returned."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.reviewInstructions]
+description = "Analysis instructions for each requested review type. Guides the LLM on what to look for in the changelog."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.reviewTypes]
+description = "Review types that were requested."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.reviewTypes.items]
+enum = [
+  "security",
+  "features",
+  "storyline",
+  "gaps",
+  "breaking_changes",
+  "quality",
+]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
+
 [[tooling.git.tools]]
 description = "Switch branches or restore working tree files. Can checkout an existing branch, create a new branch, or restore specific files."
 name = "git_checkout"
@@ -549,6 +996,31 @@ type = "string"
 [tooling.git.tools.input_schema.properties.track]
 description = "Set up tracking relationship with remote branch when creating new branch."
 type = "boolean"
+
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["success", "target", "branchCreated", "filesModified"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.branchCreated]
+description = "True if a new branch was created."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.filesModified]
+description = "Files that were modified during checkout."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.filesModified.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.target]
+description = "Checked out branch or commit."
+type = "string"
 
 [[tooling.git.tools]]
 description = "Cherry-pick commits from other branches. Apply specific commits to the current branch without merging entire branches."
@@ -606,6 +1078,38 @@ description = "Merge strategy to use for cherry-pick."
 enum = ["ort", "recursive", "octopus", "ours", "subtree"]
 type = "string"
 
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["success", "pickedCommits", "conflicts", "conflictedFiles"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.conflictedFiles]
+description = "Files with conflicts that need resolution."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.conflictedFiles.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.conflicts]
+description = "Whether operation had conflicts."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.message]
+description = "Human-readable next-step guidance, especially for conflicts."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.pickedCommits]
+description = "Commits that were successfully cherry-picked."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.pickedCommits.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
+
 [[tooling.git.tools]]
 description = "Remove untracked files from the working directory. Requires force flag for safety. Use dry-run to preview files that would be removed."
 name = "git_clean"
@@ -640,6 +1144,34 @@ default = "."
 description = "Path to the Git repository. Defaults to session working directory set via git_set_working_dir."
 type = "string"
 
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["success", "filesRemoved", "directoriesRemoved", "dryRun"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.directoriesRemoved]
+description = "List of directories that were removed."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.directoriesRemoved.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.dryRun]
+description = "Whether this was a dry-run (preview only)."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.filesRemoved]
+description = "List of files that were removed."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.filesRemoved.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
+
 [[tooling.git.tools]]
 description = "Clear the session working directory setting. This resets the context without restarting the server. Subsequent git operations will require an explicit path parameter unless git_set_working_dir is called again."
 name = "git_clear_working_dir"
@@ -654,6 +1186,24 @@ type = "object"
 description = "Explicit confirmation required to clear working directory. Accepted values: 'Y', 'y', 'Yes', or 'yes'."
 enum = ["Y", "y", "Yes", "yes"]
 type = "string"
+
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["success", "message"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.message]
+description = "Confirmation message."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.previousPath]
+description = "The working directory that was cleared (if one was set)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
 
 [[tooling.git.tools]]
 description = "Clone a repository from a remote URL or local path. Accepts HTTP(S), SSH, git://, file://, and bare filesystem paths, with optional shallow cloning."
@@ -694,6 +1244,32 @@ type = "string"
 description = "Source to clone from: HTTP(S) URL, SSH URL (ssh://… or git@host:path), git:// URL, file:// URL, or a bare filesystem path (e.g. /tmp/repo.git)."
 minLength = 1
 type = "string"
+
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["success", "remoteUrl", "path", "branch"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.branch]
+description = "The branch that was checked out."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.commitHash]
+description = "Current HEAD commit hash."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.path]
+description = "Local path where repository was cloned."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.remoteUrl]
+description = "The remote URL or path that was cloned."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
 
 [[tooling.git.tools]]
 description = '''
@@ -763,6 +1339,134 @@ default = "."
 description = "Path to the Git repository. Defaults to session working directory set via git_set_working_dir."
 type = "string"
 
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = [
+  "success",
+  "commitHash",
+  "message",
+  "author",
+  "timestamp",
+  "committedFiles",
+  "signed",
+  "status",
+]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.author]
+description = "Author of the commit."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.commitHash]
+description = "SHA-1 hash of the created commit."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.committedFiles]
+description = "List of files that were committed."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.committedFiles.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.deletions]
+description = "Number of line deletions."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.filesChanged]
+description = "Number of files changed in this commit."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.insertions]
+description = "Number of line insertions."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.message]
+description = "The commit message."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.signed]
+description = "Whether the commit was signed. False when GIT_SIGN_COMMITS=false or when signing was attempted and fell back to unsigned on failure."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.signingWarning]
+description = "Populated only when signing was requested but failed, and the commit was created unsigned as a fallback."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.status]
+additionalProperties = false
+description = "Repository status after the commit."
+required = [
+  "current_branch",
+  "staged_changes",
+  "unstaged_changes",
+  "untracked_files",
+  "conflicted_files",
+  "is_clean",
+]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.status.properties.conflicted_files]
+description = "Conflicted files after commit."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.status.properties.conflicted_files.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.status.properties.current_branch]
+description = "Current branch name after commit."
+
+[[tooling.git.tools.output_schema.properties.status.properties.current_branch.anyOf]]
+type = "string"
+
+[[tooling.git.tools.output_schema.properties.status.properties.current_branch.anyOf]]
+type = "null"
+
+[tooling.git.tools.output_schema.properties.status.properties.is_clean]
+description = "Whether working directory is clean."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.status.properties.staged_changes]
+description = "Remaining staged changes after commit."
+type = "object"
+
+[tooling.git.tools.output_schema.properties.status.properties.staged_changes.additionalProperties]
+
+[tooling.git.tools.output_schema.properties.status.properties.staged_changes.propertyNames]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.status.properties.unstaged_changes]
+description = "Unstaged changes after commit."
+type = "object"
+
+[tooling.git.tools.output_schema.properties.status.properties.unstaged_changes.additionalProperties]
+
+[tooling.git.tools.output_schema.properties.status.properties.unstaged_changes.propertyNames]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.status.properties.untracked_files]
+description = "Untracked files after commit."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.status.properties.untracked_files.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.timestamp]
+description = "Unix timestamp when the commit was created."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
 [[tooling.git.tools]]
 description = "View differences between commits, branches, or working tree. Shows changes in unified diff format."
 name = "git_diff"
@@ -826,6 +1530,45 @@ description = "Target commit/branch to compare against. If not specified, shows 
 minLength = 1
 type = "string"
 
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["success", "diff", "filesChanged"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.deletions]
+description = "Total number of line deletions."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.diff]
+description = "The diff output in unified diff format."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.excludedFiles]
+description = "Files that were automatically excluded from the diff (e.g., lock files). Call again with autoExclude=false to include them."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.excludedFiles.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.filesChanged]
+description = "Number of files with differences."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.insertions]
+description = "Total number of line insertions."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
+
 [[tooling.git.tools]]
 description = "Fetch updates from a remote repository. Downloads objects and refs without merging them."
 name = "git_fetch"
@@ -863,6 +1606,34 @@ default = false
 description = "Fetch all tags from the remote."
 type = "boolean"
 
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["success", "remote", "fetchedRefs", "prunedRefs"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.fetchedRefs]
+description = "References that were fetched from the remote."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.fetchedRefs.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.prunedRefs]
+description = "References that were pruned (deleted locally)."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.prunedRefs.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.remote]
+description = "Remote name that was fetched from."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
+
 [[tooling.git.tools]]
 description = "Initialize a new Git repository at the specified path. Creates a .git directory and sets up the initial branch."
 name = "git_init"
@@ -885,6 +1656,28 @@ type = "string"
 default = "."
 description = "Path to the Git repository. Defaults to session working directory set via git_set_working_dir."
 type = "string"
+
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["success", "path", "initialBranch", "isBare"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.initialBranch]
+description = "Name of the initial branch."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.isBare]
+description = "Whether this is a bare repository."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.path]
+description = "Path where repository was initialized."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
 
 [[tooling.git.tools]]
 description = "View commit history with optional filtering by author, date range, file path, or commit message pattern."
@@ -958,6 +1751,87 @@ type = "boolean"
 description = "Show commits older than a specific date (ISO 8601 format)."
 type = "string"
 
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["success", "commits", "totalCount"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.commits]
+description = "Array of commit objects."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.commits.items]
+additionalProperties = false
+required = ["hash", "shortHash", "subject"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.commits.items.properties.author]
+description = "Commit author name."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.commits.items.properties.authorEmail]
+description = "Commit author email."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.commits.items.properties.body]
+description = "Commit message body (if present)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.commits.items.properties.hash]
+description = "Full commit SHA-1 hash."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.commits.items.properties.parents]
+description = "Parent commit hashes."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.commits.items.properties.parents.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.commits.items.properties.patch]
+description = "Full diff patch (when patch option is used)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.commits.items.properties.refs]
+description = "References (branches, tags) pointing to this commit."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.commits.items.properties.refs.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.commits.items.properties.shortHash]
+description = "Abbreviated commit hash (7 characters)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.commits.items.properties.stat]
+description = "File change statistics (when stat option is used)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.commits.items.properties.subject]
+description = "First line of the commit message."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.commits.items.properties.timestamp]
+description = "Commit timestamp (Unix timestamp)."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.note]
+description = "Set when filters returned zero commits. Echoes the criteria and suggests broadening so callers can self-correct without inspecting the request."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.totalCount]
+description = "Total number of commits returned (may be limited by maxCount)."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
 [[tooling.git.tools]]
 description = "Merge branches together. Integrates changes from another branch into the current branch with optional merge strategies."
 name = "git_merge"
@@ -1006,6 +1880,54 @@ description = "Merge strategy to use (ort, recursive, octopus, ours, subtree)."
 enum = ["ort", "recursive", "octopus", "ours", "subtree"]
 type = "string"
 
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = [
+  "success",
+  "strategy",
+  "fastForward",
+  "conflicts",
+  "conflictedFiles",
+  "mergedFiles",
+  "message",
+]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.conflictedFiles]
+description = "Files with conflicts that need resolution."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.conflictedFiles.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.conflicts]
+description = "Whether merge had conflicts."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.fastForward]
+description = "Whether merge was fast-forward."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.mergedFiles]
+description = "Files that were merged."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.mergedFiles.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.message]
+description = "Merge commit message."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.strategy]
+description = "Merge strategy used."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
+
 [[tooling.git.tools]]
 description = "Pull changes from a remote repository. Fetches and integrates changes into the current branch."
 name = "git_pull"
@@ -1043,6 +1965,55 @@ maxLength = 255
 minLength = 1
 pattern = "^[a-zA-Z0-9._-]+$"
 type = "string"
+
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = [
+  "success",
+  "remote",
+  "branch",
+  "strategy",
+  "conflicts",
+  "conflictedFiles",
+  "filesChanged",
+]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.branch]
+description = "Branch that was pulled."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.conflictedFiles]
+description = "Files with conflicts that need resolution (empty if conflicts is false)."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.conflictedFiles.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.conflicts]
+description = "Whether pull had conflicts."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.filesChanged]
+description = "Files that were changed."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.filesChanged.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.remote]
+description = "Remote name that was pulled from."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.strategy]
+description = "Integration strategy used."
+enum = ["merge", "rebase", "fast-forward"]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
 
 [[tooling.git.tools]]
 description = "Push changes to a remote repository. Uploads local commits to the remote branch."
@@ -1114,6 +2085,49 @@ default = false
 description = "Push all tags to the remote."
 type = "boolean"
 
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = [
+  "success",
+  "remote",
+  "branch",
+  "upstreamSet",
+  "pushedRefs",
+  "rejectedRefs",
+]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.branch]
+description = "Branch that was pushed."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.pushedRefs]
+description = "References that were successfully pushed."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.pushedRefs.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.rejectedRefs]
+description = "References that were rejected by the remote."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.rejectedRefs.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.remote]
+description = "Remote name that was pushed to."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.upstreamSet]
+description = "Whether upstream tracking was set for the branch."
+type = "boolean"
+
 [[tooling.git.tools]]
 description = "Rebase commits onto another branch. Reapplies commits on top of another base tip for a cleaner history."
 name = "git_rebase"
@@ -1159,6 +2173,41 @@ description = "Upstream branch to rebase onto (required for start mode)."
 minLength = 1
 type = "string"
 
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["success", "conflicts", "conflictedFiles", "rebasedCommits"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.conflictedFiles]
+description = "Files with conflicts that need resolution."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.conflictedFiles.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.conflicts]
+description = "Whether rebase had conflicts."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.currentCommit]
+description = "Current commit hash if rebase stopped due to conflict."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.message]
+description = "Human-readable next-step guidance, especially for conflicts."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.rebasedCommits]
+description = "Number of commits that were rebased."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
+
 [[tooling.git.tools]]
 description = "View the reference logs (reflog) to track when branch tips and other references were updated. Useful for recovering lost commits."
 name = "git_reflog"
@@ -1184,6 +2233,57 @@ type = "string"
 default = "HEAD"
 description = "Reference whose reflog to show. Defaults to HEAD."
 type = "string"
+
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["success", "ref", "entries", "totalEntries"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.entries]
+description = "Array of reflog entries in reverse chronological order."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.entries.items]
+additionalProperties = false
+required = ["hash", "refName", "action", "message", "timestamp"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.entries.items.properties.action]
+description = "Action that caused this reflog entry (commit, checkout, etc.)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.entries.items.properties.hash]
+description = "Commit hash for this reflog entry."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.entries.items.properties.message]
+description = "Detailed message describing the action."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.entries.items.properties.refName]
+description = "Reference name (e.g., HEAD@{0}, main@{1})."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.entries.items.properties.timestamp]
+description = "Unix timestamp when this action occurred."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.ref]
+description = "The reference that was queried."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.totalEntries]
+description = "Total number of reflog entries."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
 
 [[tooling.git.tools]]
 description = "Manage remote repositories: list remotes, add new remotes, remove remotes, rename remotes, or get/set remote URLs."
@@ -1229,6 +2329,73 @@ description = "Remote URL for add/set-url operations. Accepts HTTP(S), SSH (ssh:
 minLength = 1
 type = "string"
 
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["success", "mode"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.added]
+additionalProperties = false
+description = "Added remote (for add mode)."
+required = ["name", "url"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.added.properties.name]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.added.properties.url]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.mode]
+description = "Operation mode that was performed."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.remotes]
+description = "List of remotes (for list mode)."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.remotes.items]
+additionalProperties = false
+required = ["name", "fetchUrl", "pushUrl"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.remotes.items.properties.fetchUrl]
+description = "Fetch URL."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.remotes.items.properties.name]
+description = "Remote name."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.remotes.items.properties.pushUrl]
+description = "Push URL (may differ from fetch URL)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.removed]
+description = "Removed remote name (for remove mode)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.renamed]
+additionalProperties = false
+description = "Rename information (for rename mode)."
+required = ["from", "to"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.renamed.properties.from]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.renamed.properties.to]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.url]
+description = "Remote URL (for get-url mode)."
+type = "string"
+
 [[tooling.git.tools]]
 description = "Reset current HEAD to specified state. Can be used to unstage files (soft), discard commits (mixed), or discard all changes (hard)."
 name = "git_reset"
@@ -1267,6 +2434,35 @@ description = "Target commit to reset to. Defaults to HEAD."
 minLength = 1
 type = "string"
 
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["success", "mode", "target", "filesReset"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.filesReset]
+description = "Files affected by the reset. For path-only resets, the listed paths. For commit-move resets, files that differ between the old and new HEAD. For --hard with no HEAD move, files whose pending working-tree changes were discarded."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.filesReset.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.mode]
+description = "Reset mode that was used."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.previousCommit]
+description = "Commit hash HEAD pointed to before the reset (omitted if HEAD did not move)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.target]
+description = "Commit hash HEAD points to after the reset."
+type = "string"
+
 [[tooling.git.tools]]
 description = "Set the session working directory for all git operations so subsequent calls can omit the path parameter. Always returns a repository snapshot (status, recent commits, recent tags, remotes) to orient the caller."
 name = "git_set_working_dir"
@@ -1290,6 +2486,174 @@ type = "string"
 [tooling.git.tools.input_schema.properties.validateGitRepo]
 default = true
 description = "Validate that the path is a Git repository."
+type = "boolean"
+
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["success", "path", "message"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.enrichmentWarnings]
+description = "Actionable notes when snapshot gathering was skipped or partially failed."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.enrichmentWarnings.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.message]
+description = "Confirmation message."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.path]
+description = "The working directory that was set."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository]
+additionalProperties = false
+description = "Best-effort repository snapshot. Omitted when the path is not a git repository (see enrichmentWarnings)."
+required = ["status", "recentCommits", "recentTags", "remotes"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentCommits]
+description = "Up to 2 most recent commits on the current branch."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentCommits.items]
+additionalProperties = false
+required = ["hash", "author", "date", "subject"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentCommits.items.properties.author]
+description = "Author name."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentCommits.items.properties.date]
+description = "Author date (ISO 8601)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentCommits.items.properties.hash]
+description = "Short commit hash."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentCommits.items.properties.subject]
+description = "First line of the commit message."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentTags]
+description = "Up to 2 most recent tags by creator date."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentTags.items]
+additionalProperties = false
+required = ["name"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentTags.items.properties.annotationBody]
+description = "Remaining annotation body after the subject (annotated tags only)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentTags.items.properties.annotationSubject]
+description = "First line of the tag annotation (annotated tags only)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentTags.items.properties.date]
+description = "Creator date (ISO 8601); absent for lightweight tags with no metadata."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentTags.items.properties.name]
+description = "Tag name."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentTags.items.properties.tagger]
+description = "Tagger identity (annotated tags only)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.remotes]
+description = "Configured remote repositories."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.repository.properties.remotes.items]
+additionalProperties = false
+required = ["name", "fetchUrl", "pushUrl"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.repository.properties.remotes.items.properties.fetchUrl]
+description = "Fetch URL."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.remotes.items.properties.name]
+description = "Remote name."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.remotes.items.properties.pushUrl]
+description = "Push URL (may differ from fetch URL)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status]
+additionalProperties = false
+required = ["branch", "isClean", "staged", "unstaged", "untracked", "conflicts"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.ahead]
+description = "Commits ahead of upstream (if tracking)."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.behind]
+description = "Commits behind upstream (if tracking)."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.branch]
+description = "Current branch (null on detached HEAD)."
+
+[[tooling.git.tools.output_schema.properties.repository.properties.status.properties.branch.anyOf]]
+type = "string"
+
+[[tooling.git.tools.output_schema.properties.repository.properties.status.properties.branch.anyOf]]
+type = "null"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.conflicts]
+description = "Paths with merge conflicts."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.conflicts.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.isClean]
+description = "True when the working tree has no changes."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.staged]
+description = "Paths staged for the next commit."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.staged.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.unstaged]
+description = "Paths with unstaged modifications."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.unstaged.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.untracked]
+description = "Untracked paths."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.untracked.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.upstream]
+description = "Upstream ref being tracked by the current branch."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
 type = "boolean"
 
 [[tooling.git.tools]]
@@ -1325,6 +2689,38 @@ type = "string"
 default = false
 description = "Show diffstat instead of full diff."
 type = "boolean"
+
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["success", "object", "type", "content"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.content]
+description = "Formatted output showing the object details."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.metadata]
+description = "Additional metadata about the object."
+type = "object"
+
+[tooling.git.tools.output_schema.properties.metadata.additionalProperties]
+
+[tooling.git.tools.output_schema.properties.metadata.propertyNames]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.object]
+description = "Object identifier."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.type]
+description = "Type of git object shown."
+enum = ["commit", "tag", "tree", "blob"]
+type = "string"
 
 [[tooling.git.tools]]
 description = "Manage stashes: list stashes, save current changes (push), restore changes (pop/apply), or remove stashes (drop/clear)."
@@ -1370,6 +2766,69 @@ type = "string"
 description = "Stash reference like stash@{0} (for pop/apply/drop operations)."
 type = "string"
 
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["success", "mode"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.applied]
+description = "Applied stash reference (for pop/apply mode)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.conflicts]
+description = "Whether operation had conflicts."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.created]
+description = "Created stash reference (for push mode)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.dropped]
+description = "Dropped stash reference (for drop mode)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.mode]
+description = "Operation mode that was performed."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.stashes]
+description = "List of stashes (for list mode)."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.stashes.items]
+additionalProperties = false
+required = ["ref", "index", "branch", "description", "timestamp"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.stashes.items.properties.branch]
+description = "Branch name when stashed."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.stashes.items.properties.description]
+description = "Stash description."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.stashes.items.properties.index]
+description = "Stash index number."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.stashes.items.properties.ref]
+description = "Stash reference (e.g., stash@{0})."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.stashes.items.properties.timestamp]
+description = "Unix timestamp when stashed."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
+
 [[tooling.git.tools]]
 description = "Show the working tree status including staged, unstaged, and untracked files."
 name = "git_status"
@@ -1387,6 +2846,133 @@ type = "boolean"
 [tooling.git.tools.input_schema.properties.path]
 default = "."
 description = "Path to the Git repository. Defaults to session working directory set via git_set_working_dir."
+type = "string"
+
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = [
+  "success",
+  "currentBranch",
+  "isClean",
+  "stagedChanges",
+  "unstagedChanges",
+  "untrackedFiles",
+  "conflictedFiles",
+]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.ahead]
+description = "Commits ahead of upstream (if tracking)."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.behind]
+description = "Commits behind upstream (if tracking)."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.conflictedFiles]
+description = "Files with merge conflicts that need resolution."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.conflictedFiles.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.currentBranch]
+description = "Current branch name."
+
+[[tooling.git.tools.output_schema.properties.currentBranch.anyOf]]
+type = "string"
+
+[[tooling.git.tools.output_schema.properties.currentBranch.anyOf]]
+type = "null"
+
+[tooling.git.tools.output_schema.properties.isClean]
+description = "True if working directory is clean (no staged, unstaged, or untracked changes). When includeUntracked is false, untracked files are excluded from this check."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.stagedChanges]
+additionalProperties = false
+description = "Changes that have been staged for the next commit."
+type = "object"
+
+[tooling.git.tools.output_schema.properties.stagedChanges.properties.added]
+description = "Files added to the index (staged)."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.stagedChanges.properties.added.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.stagedChanges.properties.copied]
+description = "Files copied and staged."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.stagedChanges.properties.copied.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.stagedChanges.properties.deleted]
+description = "Files deleted and staged."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.stagedChanges.properties.deleted.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.stagedChanges.properties.modified]
+description = "Files modified and staged."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.stagedChanges.properties.modified.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.stagedChanges.properties.renamed]
+description = "Files renamed and staged."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.stagedChanges.properties.renamed.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.unstagedChanges]
+additionalProperties = false
+description = "Changes in the working directory that have not been staged."
+type = "object"
+
+[tooling.git.tools.output_schema.properties.unstagedChanges.properties.added]
+description = "Files added but not staged."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.unstagedChanges.properties.added.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.unstagedChanges.properties.deleted]
+description = "Files deleted but not staged."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.unstagedChanges.properties.deleted.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.unstagedChanges.properties.modified]
+description = "Files modified but not staged."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.unstagedChanges.properties.modified.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.untrackedFiles]
+description = "Files in the working directory not tracked by git."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.untrackedFiles.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.upstream]
+description = "Upstream ref the current branch is tracking (if any)."
 type = "string"
 
 [[tooling.git.tools]]
@@ -1439,6 +3025,100 @@ description = "Tag name for create/delete/verify operations."
 maxLength = 255
 minLength = 1
 pattern = '^[^~^:?*\[\\]+$'
+type = "string"
+
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["success", "mode"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.created]
+description = "Created tag name (for create mode)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.deleted]
+description = "Deleted tag name (for delete mode)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.mode]
+description = "Operation mode that was performed."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.rawOutput]
+description = "Raw stderr from `git tag -v` for callers that need the full verification output (verify mode only)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.signatureType]
+description = "Signature algorithm family when detectable from `git tag -v` output (verify mode). Absent for unsigned tags or unparseable output."
+enum = ["gpg", "ssh", "x509"]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.signed]
+description = "Whether the created tag was signed. Only populated for create mode. False when GIT_SIGN_COMMITS=false or when signing failed and fell back to unsigned."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.signerIdentity]
+description = "Signer identity as emitted by git — e.g., `Name <email>` for GPG or the SSH principal. Verify mode only."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.signerKey]
+description = "Key material emitted by git — GPG fingerprint/key ID or SSH key fingerprint (`SHA256:…`). Verify mode only; absent when git did not surface it."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.signingWarning]
+description = "Populated only when signing was requested but failed, and the tag was created unsigned as a fallback."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.tags]
+description = "List of tags (for list mode)."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.tags.items]
+additionalProperties = false
+required = ["name", "commit"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.tags.items.properties.annotationBody]
+description = "Remaining annotation body after the subject line (annotated tags only)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.tags.items.properties.commit]
+description = "Commit hash the tag points to."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.tags.items.properties.message]
+description = "First line of the tag annotation (annotated tags only). See `annotationBody` for the remainder."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.tags.items.properties.name]
+description = "Tag name."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.tags.items.properties.tagger]
+description = "Tagger name and email."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.tags.items.properties.timestamp]
+description = "Tag creation timestamp."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.verified]
+description = "Whether the signature validated (for verify mode). `false` for unsigned tags, missing trust config, bad signatures, or unparseable output — inspect `warning` to distinguish."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.verifiedTag]
+description = "Verified tag name (for verify mode). Echoes the input so callers can correlate results in batched flows."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.warning]
+description = "Populated on verify failure with a human-readable reason distinguishing unsigned tags, missing trust configuration, bad signatures, and unparseable output."
 type = "string"
 
 [[tooling.git.tools]]
@@ -1501,6 +3181,84 @@ type = "boolean"
 description = "Path for the new worktree (for add/move operations)."
 type = "string"
 
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["success", "mode"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.added]
+description = "Added worktree path (for add mode)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.mode]
+description = "Operation mode that was performed."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.moved]
+additionalProperties = false
+description = "Move operation info (for move mode)."
+required = ["from", "to"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.moved.properties.from]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.moved.properties.to]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.pruned]
+description = "Pruned worktree paths (for prune mode)."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.pruned.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.removed]
+description = "Removed worktree path (for remove mode)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.success]
+description = "Indicates if the operation was successful."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.worktrees]
+description = "List of worktrees (for list mode)."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.worktrees.items]
+additionalProperties = false
+required = ["path", "head", "bare", "detached", "locked", "prunable"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.worktrees.items.properties.bare]
+description = "Whether worktree is bare."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.worktrees.items.properties.branch]
+description = "Branch checked out (if not detached)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.worktrees.items.properties.detached]
+description = "Whether HEAD is detached."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.worktrees.items.properties.head]
+description = "HEAD commit hash in this worktree."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.worktrees.items.properties.locked]
+description = "Whether the worktree is locked."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.worktrees.items.properties.path]
+description = "Absolute path to the worktree."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.worktrees.items.properties.prunable]
+description = "Whether the worktree can be pruned."
+type = "boolean"
+
 [[tooling.git.tools]]
 description = "Returns a Git wrap-up protocol: an acceptance-criteria checklist the agent must satisfy before the session is considered shipped. Uses the operator's custom instructions if configured, otherwise emits a generic goals-strict/mechanism-generic default. Enriches the response with a repository snapshot (status, recent commits, recent tags) so the agent has immediate orientation for the commit and release steps."
 name = "git_wrapup_instructions"
@@ -1519,6 +3277,145 @@ type = "string"
 [tooling.git.tools.input_schema.properties.createTag]
 description = "Controls whether the tag criterion appears in the emitted protocol. Omit or set `true` to include the tag step. Set `false` to omit it entirely — e.g., when tagging is deferred to a separate release step."
 type = "boolean"
+
+[tooling.git.tools.output_schema]
+"$schema" = "http://json-schema.org/draft-07/schema#"
+additionalProperties = false
+required = ["instructions"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.enrichmentWarnings]
+description = "Actionable notes when snapshot gathering was skipped or partially failed."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.enrichmentWarnings.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.instructions]
+description = "The wrap-up protocol to satisfy before the session ships."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository]
+additionalProperties = false
+description = "Best-effort repository snapshot. Omitted when no working directory is set or when the path is not a git repository."
+required = ["status", "recentCommits", "recentTags"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentCommits]
+description = "Up to 2 most recent commits on the current branch."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentCommits.items]
+additionalProperties = false
+required = ["hash", "author", "date", "subject"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentCommits.items.properties.author]
+description = "Author name."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentCommits.items.properties.date]
+description = "Author date (ISO 8601)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentCommits.items.properties.hash]
+description = "Short commit hash."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentCommits.items.properties.subject]
+description = "First line of the commit message."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentTags]
+description = "Up to 2 most recent tags by creator date."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentTags.items]
+additionalProperties = false
+required = ["name"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentTags.items.properties.annotationBody]
+description = "Remaining annotation body after the subject (annotated tags only)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentTags.items.properties.annotationSubject]
+description = "First line of the tag annotation (annotated tags only)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentTags.items.properties.date]
+description = "Creator date (ISO 8601); absent for lightweight tags with no metadata."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentTags.items.properties.name]
+description = "Tag name."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.recentTags.items.properties.tagger]
+description = "Tagger identity (annotated tags only)."
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status]
+additionalProperties = false
+required = ["branch", "isClean", "staged", "unstaged", "untracked", "conflicts"]
+type = "object"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.ahead]
+description = "Commits ahead of upstream (if tracking)."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.behind]
+description = "Commits behind upstream (if tracking)."
+maximum = 9007199254740991
+minimum = -9007199254740991
+type = "integer"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.branch]
+description = "Current branch (null on detached HEAD)."
+
+[[tooling.git.tools.output_schema.properties.repository.properties.status.properties.branch.anyOf]]
+type = "string"
+
+[[tooling.git.tools.output_schema.properties.repository.properties.status.properties.branch.anyOf]]
+type = "null"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.conflicts]
+description = "Paths with merge conflicts."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.conflicts.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.isClean]
+description = "True when the working tree has no changes."
+type = "boolean"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.staged]
+description = "Paths staged for the next commit."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.staged.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.unstaged]
+description = "Paths with unstaged modifications."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.unstaged.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.untracked]
+description = "Untracked paths."
+type = "array"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.untracked.items]
+type = "string"
+
+[tooling.git.tools.output_schema.properties.repository.properties.status.properties.upstream]
+description = "Upstream ref being tracked by the current branch."
+type = "string"
 
 [tooling.github]
 initial_resource_list = []
@@ -3972,6 +5869,14 @@ default = "latest"
 description = "Only used by action=cache. Package version (default: latest)."
 type = "string"
 
+[tooling.nixos.tools.output_schema]
+required = ["result"]
+type = "object"
+x-fastmcp-wrap-result = true
+
+[tooling.nixos.tools.output_schema.properties.result]
+type = "string"
+
 [[tooling.nixos.tools]]
 description = "Get package version history from NixHub.io."
 name = "nix_versions"
@@ -3995,6 +5900,14 @@ default = ""
 description = "Specific version to find"
 type = "string"
 
+[tooling.nixos.tools.output_schema]
+required = ["result"]
+type = "object"
+x-fastmcp-wrap-result = true
+
+[tooling.nixos.tools.output_schema.properties.result]
+type = "string"
+
 [tooling.plan]
 initial_resource_list = []
 kind = "mock"
@@ -4013,6 +5926,60 @@ type = "object"
 [tooling.plan.tools.input_schema.properties.parent_id]
 type = ["string", "null"]
 
+[tooling.plan.tools.output_schema]
+"$schema" = "https://json-schema.org/draft/2020-12/schema"
+type = "array"
+
+[tooling.plan.tools.output_schema."$defs".ChildrenTaskOutput]
+description = "A compact representation of a task, used by `children` tool."
+required = [
+  "id",
+  "title",
+  "status",
+  "priority",
+  "estimated_tokens_in",
+  "estimated_tokens_reasoning",
+  "estimated_tokens_out",
+]
+type = "object"
+
+[tooling.plan.tools.output_schema."$defs".ChildrenTaskOutput.properties.estimated_tokens_in]
+format = "int64"
+type = "integer"
+
+[tooling.plan.tools.output_schema."$defs".ChildrenTaskOutput.properties.estimated_tokens_out]
+format = "int64"
+type = "integer"
+
+[tooling.plan.tools.output_schema."$defs".ChildrenTaskOutput.properties.estimated_tokens_reasoning]
+format = "int64"
+type = "integer"
+
+[tooling.plan.tools.output_schema."$defs".ChildrenTaskOutput.properties.id]
+type = "string"
+
+[tooling.plan.tools.output_schema."$defs".ChildrenTaskOutput.properties.priority]
+"$ref" = "#/$defs/TaskPriority"
+
+[tooling.plan.tools.output_schema."$defs".ChildrenTaskOutput.properties.status]
+"$ref" = "#/$defs/TaskStatus"
+
+[tooling.plan.tools.output_schema."$defs".ChildrenTaskOutput.properties.title]
+type = "string"
+
+[tooling.plan.tools.output_schema."$defs".TaskPriority]
+description = "Priority of a task."
+enum = ["critical", "high", "medium", "low"]
+type = "string"
+
+[tooling.plan.tools.output_schema."$defs".TaskStatus]
+description = "Lifecycle status of a task."
+enum = ["ready", "success", "failure", "escalated"]
+type = "string"
+
+[tooling.plan.tools.output_schema.items]
+"$ref" = "#/$defs/ChildrenTaskOutput"
+
 [[tooling.plan.tools]]
 description = "Mark a task as `success` or `failure`."
 name = "complete"
@@ -4028,6 +5995,82 @@ type = "string"
 [tooling.plan.tools.input_schema.properties.task_id]
 type = "string"
 
+[tooling.plan.tools.output_schema]
+"$schema" = "https://json-schema.org/draft/2020-12/schema"
+required = [
+  "id",
+  "source_id",
+  "title",
+  "description",
+  "status",
+  "priority",
+  "created_at",
+  "updated_at",
+  "estimated_tokens_in",
+  "estimated_tokens_reasoning",
+  "estimated_tokens_out",
+]
+type = "object"
+
+[tooling.plan.tools.output_schema."$defs".TaskPriority]
+description = "Priority of a task."
+enum = ["critical", "high", "medium", "low"]
+type = "string"
+
+[tooling.plan.tools.output_schema."$defs".TaskStatus]
+description = "Lifecycle status of a task."
+enum = ["ready", "success", "failure", "escalated"]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.created_at]
+format = "date-time"
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.description]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.estimated_tokens_in]
+format = "int64"
+type = "integer"
+
+[tooling.plan.tools.output_schema.properties.estimated_tokens_out]
+format = "int64"
+type = "integer"
+
+[tooling.plan.tools.output_schema.properties.estimated_tokens_reasoning]
+format = "int64"
+type = "integer"
+
+[tooling.plan.tools.output_schema.properties.id]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.link]
+type = ["string", "null"]
+
+[tooling.plan.tools.output_schema.properties.parent_id]
+type = ["string", "null"]
+
+[tooling.plan.tools.output_schema.properties.priority]
+"$ref" = "#/$defs/TaskPriority"
+
+[tooling.plan.tools.output_schema.properties.retries]
+default = 0
+format = "int32"
+type = "integer"
+
+[tooling.plan.tools.output_schema.properties.source_id]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.status]
+"$ref" = "#/$defs/TaskStatus"
+
+[tooling.plan.tools.output_schema.properties.title]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.updated_at]
+format = "date-time"
+type = "string"
+
 [[tooling.plan.tools]]
 description = "Mark a task as `escalated` (blocked pending human review)."
 name = "escalate"
@@ -4038,6 +6081,82 @@ required = ["task_id"]
 type = "object"
 
 [tooling.plan.tools.input_schema.properties.task_id]
+type = "string"
+
+[tooling.plan.tools.output_schema]
+"$schema" = "https://json-schema.org/draft/2020-12/schema"
+required = [
+  "id",
+  "source_id",
+  "title",
+  "description",
+  "status",
+  "priority",
+  "created_at",
+  "updated_at",
+  "estimated_tokens_in",
+  "estimated_tokens_reasoning",
+  "estimated_tokens_out",
+]
+type = "object"
+
+[tooling.plan.tools.output_schema."$defs".TaskPriority]
+description = "Priority of a task."
+enum = ["critical", "high", "medium", "low"]
+type = "string"
+
+[tooling.plan.tools.output_schema."$defs".TaskStatus]
+description = "Lifecycle status of a task."
+enum = ["ready", "success", "failure", "escalated"]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.created_at]
+format = "date-time"
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.description]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.estimated_tokens_in]
+format = "int64"
+type = "integer"
+
+[tooling.plan.tools.output_schema.properties.estimated_tokens_out]
+format = "int64"
+type = "integer"
+
+[tooling.plan.tools.output_schema.properties.estimated_tokens_reasoning]
+format = "int64"
+type = "integer"
+
+[tooling.plan.tools.output_schema.properties.id]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.link]
+type = ["string", "null"]
+
+[tooling.plan.tools.output_schema.properties.parent_id]
+type = ["string", "null"]
+
+[tooling.plan.tools.output_schema.properties.priority]
+"$ref" = "#/$defs/TaskPriority"
+
+[tooling.plan.tools.output_schema.properties.retries]
+default = 0
+format = "int32"
+type = "integer"
+
+[tooling.plan.tools.output_schema.properties.source_id]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.status]
+"$ref" = "#/$defs/TaskStatus"
+
+[tooling.plan.tools.output_schema.properties.title]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.updated_at]
+format = "date-time"
 type = "string"
 
 [[tooling.plan.tools]]
@@ -4053,6 +6172,82 @@ type = "object"
 type = "string"
 
 [tooling.plan.tools.input_schema.properties.task_id]
+type = "string"
+
+[tooling.plan.tools.output_schema]
+"$schema" = "https://json-schema.org/draft/2020-12/schema"
+required = [
+  "id",
+  "source_id",
+  "title",
+  "description",
+  "status",
+  "priority",
+  "created_at",
+  "updated_at",
+  "estimated_tokens_in",
+  "estimated_tokens_reasoning",
+  "estimated_tokens_out",
+]
+type = "object"
+
+[tooling.plan.tools.output_schema."$defs".TaskPriority]
+description = "Priority of a task."
+enum = ["critical", "high", "medium", "low"]
+type = "string"
+
+[tooling.plan.tools.output_schema."$defs".TaskStatus]
+description = "Lifecycle status of a task."
+enum = ["ready", "success", "failure", "escalated"]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.created_at]
+format = "date-time"
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.description]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.estimated_tokens_in]
+format = "int64"
+type = "integer"
+
+[tooling.plan.tools.output_schema.properties.estimated_tokens_out]
+format = "int64"
+type = "integer"
+
+[tooling.plan.tools.output_schema.properties.estimated_tokens_reasoning]
+format = "int64"
+type = "integer"
+
+[tooling.plan.tools.output_schema.properties.id]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.link]
+type = ["string", "null"]
+
+[tooling.plan.tools.output_schema.properties.parent_id]
+type = ["string", "null"]
+
+[tooling.plan.tools.output_schema.properties.priority]
+"$ref" = "#/$defs/TaskPriority"
+
+[tooling.plan.tools.output_schema.properties.retries]
+default = 0
+format = "int32"
+type = "integer"
+
+[tooling.plan.tools.output_schema.properties.source_id]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.status]
+"$ref" = "#/$defs/TaskStatus"
+
+[tooling.plan.tools.output_schema.properties.title]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.updated_at]
+format = "date-time"
 type = "string"
 
 [[tooling.plan.tools]]
@@ -4107,6 +6302,14 @@ type = "string"
 [tooling.plan.tools.input_schema.properties.title]
 type = "string"
 
+[tooling.plan.tools.output_schema]
+"$schema" = "https://json-schema.org/draft/2020-12/schema"
+required = ["id"]
+type = "object"
+
+[tooling.plan.tools.output_schema.properties.id]
+type = "string"
+
 [[tooling.plan.tools]]
 description = "Return tasks needing work, sorted by priority then planning→execution."
 name = "queue"
@@ -4115,6 +6318,106 @@ name = "queue"
 type = "object"
 
 [tooling.plan.tools.input_schema.properties]
+
+[tooling.plan.tools.output_schema]
+"$schema" = "https://json-schema.org/draft/2020-12/schema"
+type = "array"
+
+[tooling.plan.tools.output_schema."$defs".QueueTaskOutput]
+description = """
+A task returned by `queue` tool, annotated with its server-decided workload
+type and token-based duration in seconds."""
+required = [
+  "id",
+  "source_id",
+  "title",
+  "description",
+  "status",
+  "priority",
+  "created_at",
+  "updated_at",
+  "estimated_tokens_in",
+  "estimated_tokens_reasoning",
+  "estimated_tokens_out",
+  "kind",
+  "duration_secs",
+]
+type = "object"
+
+[tooling.plan.tools.output_schema."$defs".QueueTaskOutput.properties.created_at]
+format = "date-time"
+type = "string"
+
+[tooling.plan.tools.output_schema."$defs".QueueTaskOutput.properties.description]
+type = "string"
+
+[tooling.plan.tools.output_schema."$defs".QueueTaskOutput.properties.duration_secs]
+format = "uint64"
+minimum = 0
+type = "integer"
+
+[tooling.plan.tools.output_schema."$defs".QueueTaskOutput.properties.estimated_tokens_in]
+format = "int64"
+type = "integer"
+
+[tooling.plan.tools.output_schema."$defs".QueueTaskOutput.properties.estimated_tokens_out]
+format = "int64"
+type = "integer"
+
+[tooling.plan.tools.output_schema."$defs".QueueTaskOutput.properties.estimated_tokens_reasoning]
+format = "int64"
+type = "integer"
+
+[tooling.plan.tools.output_schema."$defs".QueueTaskOutput.properties.id]
+type = "string"
+
+[tooling.plan.tools.output_schema."$defs".QueueTaskOutput.properties.kind]
+"$ref" = "#/$defs/TaskType"
+
+[tooling.plan.tools.output_schema."$defs".QueueTaskOutput.properties.link]
+type = ["string", "null"]
+
+[tooling.plan.tools.output_schema."$defs".QueueTaskOutput.properties.parent_id]
+type = ["string", "null"]
+
+[tooling.plan.tools.output_schema."$defs".QueueTaskOutput.properties.priority]
+"$ref" = "#/$defs/TaskPriority"
+
+[tooling.plan.tools.output_schema."$defs".QueueTaskOutput.properties.retries]
+default = 0
+format = "int32"
+type = "integer"
+
+[tooling.plan.tools.output_schema."$defs".QueueTaskOutput.properties.source_id]
+type = "string"
+
+[tooling.plan.tools.output_schema."$defs".QueueTaskOutput.properties.status]
+"$ref" = "#/$defs/TaskStatus"
+
+[tooling.plan.tools.output_schema."$defs".QueueTaskOutput.properties.title]
+type = "string"
+
+[tooling.plan.tools.output_schema."$defs".QueueTaskOutput.properties.updated_at]
+format = "date-time"
+type = "string"
+
+[tooling.plan.tools.output_schema."$defs".TaskPriority]
+description = "Priority of a task."
+enum = ["critical", "high", "medium", "low"]
+type = "string"
+
+[tooling.plan.tools.output_schema."$defs".TaskStatus]
+description = "Lifecycle status of a task."
+enum = ["ready", "success", "failure", "escalated"]
+type = "string"
+
+[tooling.plan.tools.output_schema."$defs".TaskType]
+description = "Work classification decided by the server based on token estimates."
+enum = ["planning", "execution"]
+type = "string"
+
+[tooling.plan.tools.output_schema.items]
+"$ref" = "#/$defs/QueueTaskOutput"
 
 [[tooling.plan.tools]]
 description = "Update mutable fields and set status back to `ready`."
@@ -4160,6 +6463,82 @@ type = "null"
 [tooling.plan.tools.input_schema.properties.title]
 type = ["string", "null"]
 
+[tooling.plan.tools.output_schema]
+"$schema" = "https://json-schema.org/draft/2020-12/schema"
+required = [
+  "id",
+  "source_id",
+  "title",
+  "description",
+  "status",
+  "priority",
+  "created_at",
+  "updated_at",
+  "estimated_tokens_in",
+  "estimated_tokens_reasoning",
+  "estimated_tokens_out",
+]
+type = "object"
+
+[tooling.plan.tools.output_schema."$defs".TaskPriority]
+description = "Priority of a task."
+enum = ["critical", "high", "medium", "low"]
+type = "string"
+
+[tooling.plan.tools.output_schema."$defs".TaskStatus]
+description = "Lifecycle status of a task."
+enum = ["ready", "success", "failure", "escalated"]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.created_at]
+format = "date-time"
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.description]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.estimated_tokens_in]
+format = "int64"
+type = "integer"
+
+[tooling.plan.tools.output_schema.properties.estimated_tokens_out]
+format = "int64"
+type = "integer"
+
+[tooling.plan.tools.output_schema.properties.estimated_tokens_reasoning]
+format = "int64"
+type = "integer"
+
+[tooling.plan.tools.output_schema.properties.id]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.link]
+type = ["string", "null"]
+
+[tooling.plan.tools.output_schema.properties.parent_id]
+type = ["string", "null"]
+
+[tooling.plan.tools.output_schema.properties.priority]
+"$ref" = "#/$defs/TaskPriority"
+
+[tooling.plan.tools.output_schema.properties.retries]
+default = 0
+format = "int32"
+type = "integer"
+
+[tooling.plan.tools.output_schema.properties.source_id]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.status]
+"$ref" = "#/$defs/TaskStatus"
+
+[tooling.plan.tools.output_schema.properties.title]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.updated_at]
+format = "date-time"
+type = "string"
+
 [[tooling.plan.tools]]
 description = "Fetch a single source by id."
 name = "source"
@@ -4172,6 +6551,23 @@ type = "object"
 [tooling.plan.tools.input_schema.properties.id]
 type = "string"
 
+[tooling.plan.tools.output_schema]
+"$schema" = "https://json-schema.org/draft/2020-12/schema"
+required = ["id", "title", "description", "type"]
+type = "object"
+
+[tooling.plan.tools.output_schema.properties.description]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.id]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.title]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.type]
+type = "string"
+
 [[tooling.plan.tools]]
 description = "Return all sources, ordered by id."
 name = "sources"
@@ -4180,6 +6576,30 @@ name = "sources"
 type = "object"
 
 [tooling.plan.tools.input_schema.properties]
+
+[tooling.plan.tools.output_schema]
+"$schema" = "https://json-schema.org/draft/2020-12/schema"
+type = "array"
+
+[tooling.plan.tools.output_schema."$defs".SourceOutput]
+description = "A source as returned by `sources` tool."
+required = ["id", "title", "description", "type"]
+type = "object"
+
+[tooling.plan.tools.output_schema."$defs".SourceOutput.properties.description]
+type = "string"
+
+[tooling.plan.tools.output_schema."$defs".SourceOutput.properties.id]
+type = "string"
+
+[tooling.plan.tools.output_schema."$defs".SourceOutput.properties.title]
+type = "string"
+
+[tooling.plan.tools.output_schema."$defs".SourceOutput.properties.type]
+type = "string"
+
+[tooling.plan.tools.output_schema.items]
+"$ref" = "#/$defs/SourceOutput"
 
 [[tooling.plan.tools]]
 description = "Fetch a single task by id or link (exactly one required)."
@@ -4194,6 +6614,82 @@ type = ["string", "null"]
 
 [tooling.plan.tools.input_schema.properties.link]
 type = ["string", "null"]
+
+[tooling.plan.tools.output_schema]
+"$schema" = "https://json-schema.org/draft/2020-12/schema"
+required = [
+  "id",
+  "source_id",
+  "title",
+  "description",
+  "status",
+  "priority",
+  "created_at",
+  "updated_at",
+  "estimated_tokens_in",
+  "estimated_tokens_reasoning",
+  "estimated_tokens_out",
+]
+type = "object"
+
+[tooling.plan.tools.output_schema."$defs".TaskPriority]
+description = "Priority of a task."
+enum = ["critical", "high", "medium", "low"]
+type = "string"
+
+[tooling.plan.tools.output_schema."$defs".TaskStatus]
+description = "Lifecycle status of a task."
+enum = ["ready", "success", "failure", "escalated"]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.created_at]
+format = "date-time"
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.description]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.estimated_tokens_in]
+format = "int64"
+type = "integer"
+
+[tooling.plan.tools.output_schema.properties.estimated_tokens_out]
+format = "int64"
+type = "integer"
+
+[tooling.plan.tools.output_schema.properties.estimated_tokens_reasoning]
+format = "int64"
+type = "integer"
+
+[tooling.plan.tools.output_schema.properties.id]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.link]
+type = ["string", "null"]
+
+[tooling.plan.tools.output_schema.properties.parent_id]
+type = ["string", "null"]
+
+[tooling.plan.tools.output_schema.properties.priority]
+"$ref" = "#/$defs/TaskPriority"
+
+[tooling.plan.tools.output_schema.properties.retries]
+default = 0
+format = "int32"
+type = "integer"
+
+[tooling.plan.tools.output_schema.properties.source_id]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.status]
+"$ref" = "#/$defs/TaskStatus"
+
+[tooling.plan.tools.output_schema.properties.title]
+type = "string"
+
+[tooling.plan.tools.output_schema.properties.updated_at]
+format = "date-time"
+type = "string"
 
 [tooling.rss]
 initial_resource_list = []
@@ -4213,6 +6709,15 @@ type = "object"
 
 [tooling.rss.tools.input_schema.properties.url]
 description = "URL of the article to fetch"
+type = "string"
+
+[tooling.rss.tools.output_schema]
+"$schema" = "https://json-schema.org/draft/2020-12/schema"
+required = ["content"]
+type = "object"
+
+[tooling.rss.tools.output_schema.properties.content]
+description = "Cleaned text content of the article"
 type = "string"
 
 [[tooling.rss.tools]]
@@ -4235,8 +6740,44 @@ type = "string"
 description = "If provided, only articles published after this time will be returned (ISO 8601 format)"
 type = ["string", "null"]
 
+[tooling.rss.tools.output_schema]
+"$schema" = "https://json-schema.org/draft/2020-12/schema"
+required = ["articles"]
+type = "object"
+
+[tooling.rss.tools.output_schema."$defs".Article]
+required = ["link", "title", "id"]
+type = "object"
+
+[tooling.rss.tools.output_schema."$defs".Article.properties.description]
+description = "Feed-specific summary/description"
+type = ["string", "null"]
+
+[tooling.rss.tools.output_schema."$defs".Article.properties.id]
+description = "Feed-specific identifier (GUID)"
+type = "string"
+
+[tooling.rss.tools.output_schema."$defs".Article.properties.link]
+description = "Canonical URL of the article"
+type = "string"
+
+[tooling.rss.tools.output_schema."$defs".Article.properties.published]
+description = "Publication date, if available"
+type = ["string", "null"]
+
+[tooling.rss.tools.output_schema."$defs".Article.properties.title]
+description = "Article title"
+type = "string"
+
+[tooling.rss.tools.output_schema.properties.articles]
+description = "List of articles"
+type = "array"
+
+[tooling.rss.tools.output_schema.properties.articles.items]
+"$ref" = "#/$defs/Article"
+
 [tunables]
-allow_unlocked_secrets = false
+allow_unlocked_secrets = true
 cancel_pumps_on_reload = true
 inbox_bound = 1024
 interrupt_budget_ms = 100

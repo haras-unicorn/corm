@@ -4,8 +4,9 @@ version: "0.2"
 language: en
 ignorePaths:
   - "**/omw.test.template.toml"
+  - "**/omw.test.template.json"
+  - "**/omw.d.ts"
 ignoreWords:
-  - morgan
   - openrouter
   - deepseek
   - qwen

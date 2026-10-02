@@ -4,12 +4,20 @@ export const cormSubscriptionsZod = z.compile(
   z.object({
     lifecycle: z.string().readonly(),
     endpoint: z.string().readonly(),
-    heartbeat: z.string().readonly(),
+    model: z.string().readonly(),
     generation: z.string().optional(),
   }),
 );
 
 export type CormSubscriptions = z.infer<typeof cormSubscriptionsZod>;
+
+export const cormConfigZod = z.compile(
+  z.object({
+    model: z.string().readonly(),
+  }),
+);
+
+export type CormConfig = z.infer<typeof cormConfigZod>;
 
 export const cormTaskStateZod = z.compile(z.any());
 
@@ -23,6 +31,8 @@ export const cormTaskSpecZod = z.compile(
   z.object({
     placement: cormTaskPlacementZod,
     state: cormTaskStateZod,
+    key: z.string().optional(),
+    exclusive: z.boolean().optional(),
   }),
 );
 
@@ -51,8 +61,8 @@ export type CormTask = z.infer<typeof cormTaskZod>;
 
 export const cormStateZod = z.compile(
   z.object({
-    pending: z.array(cormTaskZod),
-    immediate: z.array(cormTaskZod),
+    pending: z.array(cormTaskZod).default([]),
+    immediate: z.array(cormTaskZod).default([]),
   }),
 );
 

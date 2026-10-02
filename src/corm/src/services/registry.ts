@@ -1,4 +1,4 @@
-import CormChatHandler from "corm/handlers/chat";
+import CormChatHandler from "../handlers/chat";
 import type { CormHandlerFactory } from "./registrar";
 
 const registry = (() => {

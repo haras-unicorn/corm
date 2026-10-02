@@ -1,6 +1,10 @@
 import { cormSubscriptionsKey } from "./keys";
-import { cormModel } from "./model";
 import { type CormSubscriptions, cormSubscriptionsZod } from "./types";
+
+export interface CormNamedTooling {
+  name: string;
+  handle: ToolingHandle;
+}
 
 export interface CormHandlesManager {
   load(): CormHandles;
@@ -10,15 +14,11 @@ export interface CormHandlesManager {
 export interface CormHandles {
   host(): Host;
 
+  providers(): ProviderHandle[];
+
   main(): ProviderHandle;
 
-  nixos(): ToolingHandle;
-  nix(): ToolingHandle;
-  git(): ToolingHandle;
-  github(): ToolingHandle;
-  rss(): ToolingHandle;
-  plan(): ToolingHandle;
-  filesystem(): ToolingHandle;
+  toolings(): CormNamedTooling[];
 
   subscriptions(): CormSubscriptions;
 }
@@ -37,12 +37,10 @@ class OmwCormHandlesManager {
 
   public load(): CormHandles {
     if (this._handles === undefined) {
-      const handles = new OmwCormHandles(this._omw);
-      this._handles = handles;
-      return handles;
-    } else {
-      return this._handles;
+      this._handles = new OmwCormHandles(this._omw);
     }
+
+    return this._handles;
   }
 
   public release(event: OmwEvent): void {
@@ -55,128 +53,51 @@ class OmwCormHandlesManager {
 class OmwCormHandles {
   private _omw: Omw;
 
-  private _gpu?: ProviderHandle;
-  private _cpu?: ProviderHandle;
-  private _remote?: ProviderHandle;
-
-  private _nixos: ToolingHandle;
-  private _nix: ToolingHandle;
-  private _git: ToolingHandle;
-  private _github: ToolingHandle;
-  private _rss: ToolingHandle;
-  private _plan: ToolingHandle;
-  private _filesystem: ToolingHandle;
+  private _providers: ProviderHandle[];
+  private _toolings: CormNamedTooling[];
 
   private _subscriptions: CormSubscriptions;
 
   constructor(omw: Omw) {
     this._omw = omw;
 
-    try {
-      this._gpu = this._omw.provider.get("gpu");
-    } catch {}
+    this._providers = [
+      this._provider("gpu"),
+      this._provider("remote"),
+      this._provider("cpu"),
+    ].filter((provider) => provider !== undefined);
 
-    try {
-      this._cpu = this._omw.provider.get("cpu");
-    } catch {}
-
-    try {
-      this._remote = this._omw.provider.get("remote");
-    } catch {}
-
-    if (
-      this._gpu === undefined &&
-      this._cpu === undefined &&
-      this._remote === undefined
-    ) {
-      OmwCormHandles.throwNoProvider();
+    if (this._providers.length === 0) {
+      throw new Error("at least one provider must be configured");
     }
 
-    this._nixos = this._omw.tooling.get("nixos");
-    this._nix = this._omw.tooling.get("nix");
-    this._git = this._omw.tooling.get("git");
-    this._github = this._omw.tooling.get("github");
-    this._rss = this._omw.tooling.get("rss");
-    this._plan = this._omw.tooling.get("plan");
-    this._filesystem = this._omw.tooling.get("filesystem");
+    this._toolings = [
+      this._tooling("nixos"),
+      this._tooling("nix"),
+      this._tooling("git"),
+      this._tooling("github"),
+      this._tooling("rss"),
+      this._tooling("plan"),
+      this._tooling("filesystem"),
+    ].filter((tooling) => tooling !== undefined);
 
-    const subscriptionsText = this._omw.host.memoryGet(cormSubscriptionsKey);
-    let subscriptionsJson: unknown | null = null;
-    if (subscriptionsText) {
-      try {
-        subscriptionsJson = JSON.parse(subscriptionsText);
-      } catch {}
-    }
-    let subscriptions: CormSubscriptions | null = null;
-    if (subscriptionsJson) {
-      const subscriptionsParsed =
-        cormSubscriptionsZod.safeParse(subscriptionsJson);
-      if (subscriptionsParsed.success) {
-        subscriptions = subscriptionsParsed.data;
-      }
-    }
-    if (subscriptions) {
-      this._subscriptions = subscriptions;
-    } else {
-      const subscriptions = {
-        lifecycle: this._omw.host.subscribeLifecycle(),
-        endpoint: this._omw.host.subscribeEndpoint(cormModel),
-        heartbeat: this._omw.host.waitCron("0 */1 * * * * *"),
-      } as CormSubscriptions;
-      this._subscriptions = subscriptions;
-      this._omw.host.memorySet(
-        cormSubscriptionsKey,
-        JSON.stringify(subscriptions),
-      );
-    }
+    this._subscriptions = this._loadSubscriptions();
   }
 
   public host(): Host {
     return this._omw.host;
   }
 
+  public providers(): ProviderHandle[] {
+    return this._providers;
+  }
+
   public main(): ProviderHandle {
-    if (this._gpu !== undefined) {
-      return this._gpu;
-    }
-
-    if (this._remote !== undefined) {
-      return this._remote;
-    }
-
-    if (this._cpu !== undefined) {
-      return this._cpu;
-    }
-
-    OmwCormHandles.throwNoProvider();
+    return this._providers[0];
   }
 
-  public nixos(): ToolingHandle {
-    return this._nixos;
-  }
-
-  public nix(): ToolingHandle {
-    return this._nix;
-  }
-
-  public git(): ToolingHandle {
-    return this._git;
-  }
-
-  public github(): ToolingHandle {
-    return this._github;
-  }
-
-  public rss(): ToolingHandle {
-    return this._rss;
-  }
-
-  public plan(): ToolingHandle {
-    return this._plan;
-  }
-
-  public filesystem(): ToolingHandle {
-    return this._filesystem;
+  public toolings(): CormNamedTooling[] {
+    return this._toolings;
   }
 
   public subscriptions(): CormSubscriptions {
@@ -192,7 +113,55 @@ class OmwCormHandles {
     }
   }
 
-  private static throwNoProvider(): never {
-    throw new Error("at least one provider must be configured");
+  private _provider(name: string): ProviderHandle | undefined {
+    try {
+      const lookup = this._omw.provider as {
+        get(name: string): ProviderHandle;
+      };
+      return lookup.get(name);
+    } catch {
+      return undefined;
+    }
+  }
+
+  private _tooling(name: string): CormNamedTooling | undefined {
+    try {
+      const lookup = this._omw.tooling as {
+        get(name: string): ToolingHandle;
+      };
+      return { name, handle: lookup.get(name) };
+    } catch {
+      return undefined;
+    }
+  }
+
+  private _loadSubscriptions(): CormSubscriptions {
+    const model = this._omw.host.whoami();
+
+    const stored = this._omw.host.memoryGet(cormSubscriptionsKey);
+    if (stored) {
+      try {
+        const parsed = cormSubscriptionsZod.safeParse(JSON.parse(stored));
+        if (parsed.success && parsed.data.model === model) {
+          return parsed.data;
+        }
+        if (parsed.success) {
+          this._omw.host.unsubscribeEndpoint(parsed.data.endpoint);
+        }
+      } catch {}
+    }
+
+    const subscriptions = {
+      lifecycle: this._omw.host.subscribeLifecycle(),
+      endpoint: this._omw.host.subscribeEndpoint(model),
+      model,
+    } as CormSubscriptions;
+
+    this._omw.host.memorySet(
+      cormSubscriptionsKey,
+      JSON.stringify(subscriptions),
+    );
+
+    return subscriptions;
   }
 }

@@ -15,7 +15,7 @@
         chatgpt = {
           openai_api_key = "";
           url = "http://${config.corm.endpoint.host}:${builtins.toString config.corm.endpoint.port}/v1/chat/completions";
-          model = "morgan-fetch";
+          model = config.corm.endpoint.model;
         };
       };
 
@@ -39,6 +39,13 @@
           type = lib.types.port;
           default = self.lib.ports.endpoint;
           description = "Port to listen on";
+        };
+
+        model = lib.mkOption {
+          type = lib.types.str;
+          default = config.corm.omw.agent;
+          defaultText = lib.literalExpression "config.corm.omw.agent";
+          description = "The endpoint model name clients request. Defaults to the configured agent name.";
         };
 
         tenere = {

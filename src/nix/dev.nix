@@ -11,6 +11,7 @@
         nushell
         nil
         nixfmt
+        curl
         markdownlint-cli
         marksman
         mdbook

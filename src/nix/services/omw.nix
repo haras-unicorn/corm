@@ -15,6 +15,8 @@
         {
           cormName = "corm";
 
+          cormAgent = cfg.agent;
+
           cormStateDir = "/var/lib/${config.services.omw.stateDir}";
           cormWorkspaceDir = "/var/lib/${config.services.omw.stateDir}/workspace";
           cormDataDir = "/var/lib/${config.services.omw.stateDir}/data";
@@ -58,6 +60,12 @@
 
       options.corm.omw = {
         enable = lib.mkEnableOption "the Corm omw agent runtime";
+
+        agent = lib.mkOption {
+          type = lib.types.str;
+          default = "corm";
+          description = "The name of the agent the brain runs as. This is also the endpoint model name the agent subscribes under.";
+        };
 
         variant = lib.mkOption {
           type = lib.types.enum [

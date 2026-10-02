@@ -20,6 +20,8 @@
 
           cormName ? "corm",
 
+          cormAgent ? "corm",
+
           cormStateDir ? "/var/lib/${cormName}",
           cormWorkspaceDir ? "${cormStateDir}/workspace",
           cormDataDir ? "${cormStateDir}/data",
@@ -52,6 +54,14 @@
 
           mcp-server-filesystem-bwrap = cormPackages.mcp-server-filesystem-bwrap;
           git-mcp-server-ssh-agent = cormPackages.git-mcp-server-ssh-agent;
+
+          cormConfigModel =
+            if cormGpuHost != null && cormGpuPort != null && cormGpuModel != null then
+              cormGpuModel
+            else if cormRemoteBaseUrl != null && cormRemoteModel != null then
+              cormRemoteModel
+            else
+              cormCpuModel;
 
           settings = {
             # TODO: figure out how to run without this
@@ -169,9 +179,17 @@
 
             runtime.js.kind = "js";
 
-            agents.corm = {
+            agents.${cormAgent} = {
               runtime = "js";
               script = cormScript;
+            };
+
+            memory = lib.optionalAttrs (cormConfigModel != null) {
+              ${cormAgent} = {
+                "corm-config" = {
+                  model = cormConfigModel;
+                };
+              };
             };
           }
           // lib.optionalAttrs (cormEndpointHost != null && cormEndpointPort != null) {
@@ -187,6 +205,8 @@
             inherit settings;
 
             name = cormName;
+
+            agent = cormAgent;
 
             stateDir = cormStateDir;
             workspaceDir = cormWorkspaceDir;

@@ -20,6 +20,15 @@
       model = "deepseek/deepseek-v4.1-flash";
     };
 
+    # NOTE: the pinned omw input; `rev` comes from the flake lock so the
+    # generated `omw.d.ts` always tracks the omw version corm is built against.
+    omw = {
+      owner = "haras-unicorn";
+      repo = "omw";
+      rev = inputs.omw.rev;
+      dts = "src/wasm/omw-wasm-js-interpreter/omw.all.d.ts";
+    };
+
     allowedDomains = [
       "opencode.ai"
       "en.wikipedia.org"
