@@ -25,7 +25,7 @@
     pyproject-build-systems.inputs.pyproject-nix.follows = "pyproject-nix";
     pyproject-build-systems.inputs.uv2nix.follows = "uv2nix";
 
-    omw.url = "github:haras-unicorn/omw/refs/tags/v0.1.4";
+    omw.url = "github:haras-unicorn/omw/refs/tags/v0.1.5";
 
     mcp-nix.url = "github:haras-unicorn/mcp-nix/refs/tags/v0.1.4";
 
