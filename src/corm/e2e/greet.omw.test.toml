@@ -1,0 +1,20 @@
+[endpoint]
+requests = [
+  { model = "corm", session_id = "corm", messages = [
+    { content = "say hi" },
+  ] },
+]
+
+[providers.gpu]
+turns = [{ content = "hi" }]
+
+[memory.corm]
+"corm-state" = "{}"
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "inbound", event = "endpoint-message" },
+  { kind = "call", op = "chat_stream", detail = { model = "^model$" } },
+  { kind = "inbound", event = "chat-end" },
+]

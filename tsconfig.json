@@ -5,15 +5,15 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "resolveJsonModule": true,
     "types": [],
     "strict": true,
     "noEmit": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
     "paths": {
-      "corm/*": ["src/corm/src/*"]
+      "corm/*": ["./src/corm/src/*"]
     }
   },
   "include": ["src/**/*.ts"]
