@@ -33,9 +33,9 @@ class OmwCormConfigManager {
           : {};
 
       for (const key of Object.keys(cormConfigZod.shape)) {
-        const value = this._omw.host.memoryGet(`${cormConfigKey}-${key}`);
+        const value = this._omw.host.memoryGet(`${cormConfigKey}_${key}`);
         if (value !== undefined) {
-          this._logger.trace(`config overridden by ${cormConfigKey}-${key}`);
+          this._logger.trace(`config overridden by ${cormConfigKey}_${key}`);
           seed[key] = value;
         }
       }

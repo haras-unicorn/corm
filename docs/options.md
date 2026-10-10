@@ -833,7 +833,7 @@ _Type:_ absolute path
 _Default:_
 
 ```nix
-"/nix/store/ggp8a3fjn7x3k95y087pvbl07q7h21za-corm-0.1.0/index.js"
+"corm-index.js"
 ```
 
 ## corm\.omw\.tunables

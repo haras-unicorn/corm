@@ -84,6 +84,7 @@
         script = lib.mkOption {
           type = lib.types.path;
           default = "${pkgs.cormPackages.corm}/index.js";
+          defaultText = "corm-index.js";
           description = "The JavaScript brain script omw runs.";
         };
 

@@ -10,7 +10,7 @@ models = ["mock-model"]
 turns = [{ content = "hello" }]
 
 [memory.corm]
-"corm-config" = { model = "" }
+"corm_config" = { model = "" }
 "corm-state" = "{}"
 
 [assertions.corm]

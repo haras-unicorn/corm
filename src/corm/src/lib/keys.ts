@@ -4,4 +4,4 @@ export const cormStateKey = "corm-state";
 
 export const cormStateFile = "corm-state.json";
 
-export const cormConfigKey = "corm-config";
+export const cormConfigKey = "corm_config";

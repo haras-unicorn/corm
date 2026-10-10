@@ -12,7 +12,7 @@ turns = [
 ]
 
 [memory.corm]
-"corm-config" = { model = "model", prompt = "be terse" }
+"corm_config" = { model = "model", prompt = "be terse" }
 "corm-state" = "{}"
 
 [tooling.filesystem]

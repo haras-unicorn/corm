@@ -241,7 +241,7 @@ in
               omw.environment.RUST_LOG = lib.mkIf debug "omw=trace,hyper=debug,reqwest=debug";
               omw.environmentFile = "/run/corm.env";
               omw.bwrapArgs = selfLib.bwrap.container;
-              omw.memory."corm-config-prompt" = ''
+              omw.memory."corm_config_prompt" = ''
                 You are Corm, a local-first agent running inside a
                 systemd-nspawn container in a development environment. Your
                 JavaScript brain is executed by the omw runtime, the agent
