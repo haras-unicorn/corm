@@ -61,6 +61,8 @@
             extraGroups = [ "video" ];
           };
 
+          nix.settings.allowed-users = [ "@corm" ];
+
           corm.omw.enable = lib.mkDefault true;
           corm.endpoint.enable = lib.mkDefault true;
         })
