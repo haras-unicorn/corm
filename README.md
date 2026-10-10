@@ -47,6 +47,7 @@ subscribes under. Providers are tried in `gpu`, `remote`, `cpu` order:
   corm = {
     enable = true;
     settings.prompt = "You are Corm, a local-first NixOS agent.";
+    settings.tools = [ "git__git_status" "filesystem__read_file" ];
 
     # a local llama.cpp provider ...
     cpu-provider.enable = true;

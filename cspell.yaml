@@ -61,3 +61,7 @@ ignoreWords:
   - deepseek
   - sandboxed
   - znver
+  - reflog
+  - worktree
+  - wrapup
+  - unstar

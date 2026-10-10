@@ -172,8 +172,8 @@ export const makeToolingHandle = (
 export const makeNamedToolings = (
   toolings: ToolingHandle[],
 ): CormNamedTooling[] =>
-  toolings.map((handle, index) => ({
-    name: `t${index}`,
+  toolings.map((handle) => ({
+    name: handle.name,
     handle: handle as unknown as CormNamedTooling["handle"],
   }));
 
@@ -205,7 +205,7 @@ export const makeContext = (
 ): CormContext => ({
   handles,
   config,
-  tooling: createCormTooling(handles),
+  tooling: createCormTooling(handles, config.tools),
   logger: createCormLogger(handles.host()),
 });
 

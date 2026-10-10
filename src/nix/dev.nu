@@ -18,17 +18,26 @@ def "main format" [] {
     | to json
     | prettier --parser json
     | save -f (corm e2e test base))
+  corm tools list
+    | to json
+    | prettier --parser json
+    | save -f (corm tools path)
   curl -fsSL (corm omw types url)
     | biome format $"--stdin-file-path=(corm omw types path)"
     | save -f (corm omw types path)
-  open --raw (nix build --no-link --print-out-paths ".#options")
-    | prettier --parser markdown
-    | save -f "./docs/options.md"
+  main docs
   prettier --write .
   taplo format ...(fd --glob '**/*.toml' . | lines)
   nixfmt ...(fd --glob '**/*.nix' . | lines)
   biome format --write .
   biome check --write .
+}
+
+def "main docs" [] {
+  cd (flake-root)
+  open --raw (nix build --no-link --print-out-paths ".#options")
+    | prettier --parser markdown
+    | save -f "./docs/options.md"
 }
 
 def "main lint" [] {
@@ -62,6 +71,9 @@ def "main lint check" [] {
           + " are empty"
       )
     }
+  }
+  if ((open (corm tools path)) != (corm tools list)) {
+    error make { msg: $"(corm tools path) is stale; run `dev format`" }
   }
   prettier --check .
   taplo check ...(fd --glob '**/*.toml' . | lines)
@@ -275,6 +287,28 @@ def "corm omw types url" [] {
   ("https://raw.githubusercontent.com"
     + $"/haras-unicorn/omw/($rev)"
     + "/src/wasm/omw-wasm-js-interpreter/omw.all.d.ts")
+}
+
+def "corm tools list" [] {
+  open (corm e2e test base)
+    | get tooling
+    | transpose key value
+    | each { |row|
+      $row.value.tools
+        | get --optional name
+        | each { |name| $"($row.key)__($name)" }
+    }
+    | flatten
+    | compact
+    | where { |name| not ($name in (
+        open ((flake-root) | path join "src/corm/src/lib/disabled-tools.json")
+      )) }
+    | sort
+    | uniq
+}
+
+def "corm tools path" [] {
+  $"(flake-root)/src/nix/services/tools.json"
 }
 
 def "corm system" [] {

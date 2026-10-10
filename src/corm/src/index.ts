@@ -17,10 +17,14 @@ const handleManager = createCormHandlesManager(globalOmw);
 const configManager = createCormConfigManager(globalOmw);
 const stateManager = createCormStateManager(globalOmw);
 
+const handles = handleManager.load();
+const config = configManager.load();
+const tooling = createCormTooling(handles, config.tools);
+
 const context: CormContext = {
-  handles: handleManager.load(),
-  config: configManager.load(),
-  tooling: createCormTooling(handleManager.load()),
+  handles,
+  config,
+  tooling,
   logger,
 };
 
