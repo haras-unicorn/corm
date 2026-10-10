@@ -694,16 +694,17 @@ _Default:_
 "none"
 ```
 
-## corm\.gpu-provider\.kind\.strata\.visionReserveMib
+## corm\.gpu-provider\.kind\.strata\.vramReserveMib
 
-VRAM (MiB) to keep free for the image encoder when vision is enabled\.
+VRAM (MiB) to leave free for other programs (`--vram-reserve-mib`); the GPU
+expert cache is sized to the rest\. Null keeps the engine’s default (700 MiB)\.
 
-_Type:_ unsigned integer, meaning >=0
+_Type:_ null or (unsigned integer, meaning >=0)
 
 _Default:_
 
 ```nix
-1500
+null
 ```
 
 ## corm\.gpu-provider\.model

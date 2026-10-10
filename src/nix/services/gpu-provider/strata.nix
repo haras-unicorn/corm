@@ -58,8 +58,10 @@
             ]
             ++ lib.optionals (kindCfg.vision != "none") [
               "--vision"
+            ]
+            ++ lib.optionals (kindCfg.vramReserveMib != null) [
               "--vram-reserve-mib"
-              (builtins.toString kindCfg.visionReserveMib)
+              (builtins.toString kindCfg.vramReserveMib)
             ]
             ++ kindCfg.extraArgs;
 
@@ -132,10 +134,10 @@
                 default = "none";
               };
 
-              visionReserveMib = lib.mkOption {
-                description = "VRAM (MiB) to keep free for the image encoder when vision is enabled.";
-                type = lib.types.ints.unsigned;
-                default = 1500;
+              vramReserveMib = lib.mkOption {
+                description = "VRAM (MiB) to leave free for other programs (`--vram-reserve-mib`); the GPU expert cache is sized to the rest. Null keeps the engine's default (700 MiB).";
+                type = lib.types.nullOr lib.types.ints.unsigned;
+                default = null;
               };
 
               kv = lib.mkOption {
