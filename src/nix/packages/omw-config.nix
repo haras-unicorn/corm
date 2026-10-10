@@ -205,7 +205,7 @@
 
             memory = lib.optionalAttrs (cormConfigModel != null) {
               ${cormAgent} = {
-                "corm-config" = {
+                "corm_config" = {
                   model = cormConfigModel;
                 }
                 // cormConfig;

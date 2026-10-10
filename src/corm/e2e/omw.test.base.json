@@ -11,7 +11,7 @@
   },
   "memory": {
     "corm": {
-      "corm-config": {
+      "corm_config": {
         "model": "model"
       }
     }

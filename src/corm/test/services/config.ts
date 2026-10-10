@@ -38,14 +38,14 @@ test("load overlays flat memory keys onto the nested config", () => {
   const memory = new Map([
     [cormConfigKey, JSON.stringify({ model: "qwen", prompt: "base" })],
   ]);
-  memory.set(`${cormConfigKey}-prompt`, "be terse");
+  memory.set(`${cormConfigKey}_prompt`, "be terse");
   const manager = createCormConfigManager(makeOmw(memory));
 
   expect(manager.load()).toEqual({ model: "qwen", prompt: "be terse" });
 });
 
 test("load assembles from flat memory keys without a nested object", () => {
-  const memory = new Map([[`${cormConfigKey}-model`, "qwen"]]);
+  const memory = new Map([[`${cormConfigKey}_model`, "qwen"]]);
   const manager = createCormConfigManager(makeOmw(memory));
 
   expect(manager.load()).toEqual({ model: "qwen" });
@@ -53,7 +53,7 @@ test("load assembles from flat memory keys without a nested object", () => {
 
 test("load reads flat prompts as raw strings, not JSON", () => {
   const memory = new Map([[cormConfigKey, JSON.stringify({ model: "qwen" })]]);
-  memory.set(`${cormConfigKey}-prompt`, '{"a":1}');
+  memory.set(`${cormConfigKey}_prompt`, '{"a":1}');
   const manager = createCormConfigManager(makeOmw(memory));
 
   expect(manager.load()).toEqual({ model: "qwen", prompt: '{"a":1}' });

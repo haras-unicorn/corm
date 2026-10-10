@@ -23,8 +23,8 @@ agent wants to change itself" to "the change exists in the real world."
     `filesystem`), and the endpoint/lifecycle subscriptions (persisted in memory
     under `corm-subscriptions` and reused when the model still matches).
   - `config.ts` — the zod-validated `CormConfig` (`{ model, prompt? }`), loaded
-    lazily from memory: it seeds from the nested `corm-config` object (seeded
-    per-agent by `omw-config.nix`) then overlays one flat `corm-config-<field>`
+    lazily from memory: it seeds from the nested `corm_config` object (seeded
+    per-agent by `omw-config.nix`) then overlays one flat `corm_config_<field>`
     key per `cormConfigZod.shape` field, which is how the `OMW__` environment
     layering reaches the brain.
   - `tooling.ts` — the machine-level tooling layer: enumerates every tooling's
