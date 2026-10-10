@@ -80,11 +80,13 @@
           runtimeInputs = [ pkgs.bubblewrap ];
           text = ''
             mkdir -p "$GIT_BASE_DIR"
+            mkdir -p "$GIT_SSH_DIR"
             exec bwrap \
               ${final.lib.escapeShellArgs (if bwrapArgs != null then bwrapArgs else selfLib.bwrap.base)} \
               --unshare-all \
               --share-net \
               --bind "$GIT_BASE_DIR" "$GIT_BASE_DIR" \
+              --bind "$GIT_SSH_DIR" "$GIT_SSH_DIR" \
               --chdir "$GIT_BASE_DIR" \
               --setenv HOME "$GIT_BASE_DIR" \
               -- ${pkgs.lib.getExe gitMcpServer} "$GIT_BASE_DIR" "$@"
@@ -130,7 +132,21 @@
           ];
           text = ''
             export GIT_SSH_COMMAND="${lib.getExe gitMcpServerSshCommand}"
-            exec ssh-agent git-mcp-server-add-ssh-key "$@"
+            mkdir -p "$GIT_SSH_DIR"
+            rm -f "$GIT_SSH_DIR/agent.sock"
+            ssh-agent -D -a "$GIT_SSH_DIR/agent.sock" &
+            SSH_AGENT_PID=$!
+            export SSH_AUTH_SOCK="$GIT_SSH_DIR/agent.sock"
+            cleanup() { kill "$SSH_AGENT_PID" 2>/dev/null || true; }
+            trap cleanup EXIT
+            trap 'exit 143' TERM
+            trap 'exit 130' INT
+            for _ in $(seq 1 50); do
+              [ -S "$SSH_AUTH_SOCK" ] && break
+              kill -0 "$SSH_AGENT_PID" 2>/dev/null || break
+              sleep 0.1
+            done
+            git-mcp-server-add-ssh-key "$@"
           '';
         }
       ) { };

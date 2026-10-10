@@ -150,3 +150,5 @@ ignoreWords:
   - esac
   - rustflags
   - elfutils
+  - nsswitch
+  - resolv
