@@ -152,3 +152,7 @@ ignoreWords:
   - elfutils
   - nsswitch
   - resolv
+  - reflog
+  - worktree
+  - wrapup
+  - unstar

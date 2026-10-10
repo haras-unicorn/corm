@@ -12,6 +12,10 @@
       cfg = config.corm;
 
       json = pkgs.formats.json { };
+
+      tools = builtins.fromJSON (builtins.readFile ./tools.json);
+
+      toolsDescription = lib.concatMapStringsSep "\n" (tool: "- `${tool}`") tools;
     in
     {
       imports = [
@@ -25,7 +29,15 @@
         settings = lib.mkOption {
           type = json.type;
           default = { };
-          description = "Corm settings passed to the agent through it's memory.";
+          description =
+            "Corm settings passed to the agent through it's memory.\n\n"
+            + "The `tools` key restricts the agent to a subset of the tools it "
+            + "may call, named `<tooling>__<tool>` (for example "
+            + "`github__create_pull_request`). When `tools` is absent the agent "
+            + "gets every tool; an empty list gives it none. Some tools are "
+            + "always disabled and can never be re-enabled.\n\n"
+            + "Available tools:\n\n"
+            + toolsDescription;
         };
       };
 

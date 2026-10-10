@@ -15,6 +15,7 @@ export const cormConfigZod = z.compile(
   z.object({
     model: z.string().readonly(),
     prompt: z.string().readonly().optional(),
+    tools: z.array(z.string()).readonly().optional(),
   }),
 );
 

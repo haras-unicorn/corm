@@ -14,23 +14,30 @@ agent wants to change itself" to "the change exists in the real world."
 - `src/corm` is the TypeScript package; the pnpm workspace root is the repo
   root.
 - `src/corm/src/index.ts` is the entry: it builds the handle/state/config
-  managers and the shared context, creates the handler registrar and the
-  machine, then drives the event loop over `omw.host.recv()`. On `reload` or
-  `shutdown` it releases every manager and exits.
+  managers and the shared context (wiring the configured `tools` subset into the
+  tooling layer), creates the handler registrar and the machine, then drives the
+  event loop over `omw.host.recv()`. On `reload` or `shutdown` it releases every
+  manager and exits.
 - `src/corm/src/services` holds the machine-level services:
   - `handles.ts` — the loaded providers (`gpu`, `remote`, `cpu`, in that
     fallback order), toolings (`nixos`, `nix`, `git`, `github`, `rss`, `plan`,
     `filesystem`), and the endpoint/lifecycle subscriptions (persisted in memory
     under `corm-subscriptions` and reused when the model still matches).
-  - `config.ts` — the zod-validated `CormConfig` (`{ model, prompt? }`), loaded
-    lazily from memory: it seeds from the nested `corm_config` object (seeded
-    per-agent by `omw-config.nix`) then overlays one flat `corm_config_<field>`
-    key per `cormConfigZod.shape` field, which is how the `OMW__` environment
-    layering reaches the brain.
+  - `config.ts` — the zod-validated `CormConfig` (`{ model, prompt?, tools? }`),
+    loaded lazily from memory: it seeds from the nested `corm_config` object
+    (seeded per-agent by `omw-config.nix`) then overlays one flat
+    `corm_config_<field>` key per `cormConfigZod.shape` field, which is how the
+    `OMW__` environment layering reaches the brain. `tools` is the
+    `<tooling>__<tool>` subset the tooling layer exposes.
   - `tooling.ts` — the machine-level tooling layer: enumerates every tooling's
-    `listTools()`, exposes corm tools as `corm__<name>`, resolves ownership, and
-    runs the async `callTool` / `tool-result` / `error` lifecycle. This is the
-    seam for future high-entropy token redaction (not implemented).
+    `listTools()`, filters them against the configured `CormConfig.tools` subset
+    and the internal always-disabled list (`lib/disabled-tools.json`) — both
+    matched as `<tooling>__<tool>` — exposes the survivors as
+    `corm__<tooling>__<tool>`, resolves ownership, and runs the async `callTool`
+    / `tool-result` / `error` lifecycle. An absent subset exposes everything, an
+    empty one exposes nothing; a configured name that matches no tooling logs a
+    warning. This is the seam for future high-entropy token redaction (not
+    implemented).
   - `state.ts` — the task-state manager. Its startup filesystem read and
     shutdown filesystem write via `callToolBlocking` are the single sanctioned
     blocking calls in corm (see below).
@@ -45,8 +52,9 @@ agent wants to change itself" to "the change exists in the real world."
     and the memory/state keys.
 - `src/corm/src/lib` holds shared helpers: `omw.ts` binds the generated test
   config into the `CormOmw` alias (and the provider/tooling name unions) so no
-  source uses the unconstrained global `Omw`, and `tools.ts` extracts text from
-  `ToolResult` content.
+  source uses the unconstrained global `Omw`, `tools.ts` extracts text from
+  `ToolResult` content, and `disabled-tools.json` is the always-disabled tool
+  list shared with the Nix tooling list.
 - `src/corm/src/handlers/chat.ts` is the one handler: the async MCP tool loop.
   It selects a provider with fallback (gpu → remote → cpu), reads the model from
   the config service (falling back to `provider.listModels()[0]`), injects the
@@ -131,11 +139,13 @@ agent wants to change itself" to "the change exists in the real world."
       `qwen-3-8-flash-next-iq2-xs` (ISTA-DASLab IQ2_XS plus the vision mmproj)
       is the only model Strata runs.
   - `services/` — the corm NixOS modules. `corm.nix` is the orchestrator: it
-    declares `corm.enable`, imports the provider modules, creates the `corm`
-    user/group, and defines the `corm.target` unit
-    (`wantedBy multi-user.target`, `after network-online.target`). Every
-    provider service is `requiredBy`/`bindsTo` `corm.target`, so they come up
-    and go down together. The modules are:
+    declares `corm.enable`, the freeform `corm.settings` (whose description
+    lists the raw tool names from the generated `services/tools.json`), imports
+    the provider modules, creates the `corm` user/group, and defines the
+    `corm.target` unit (`wantedBy multi-user.target`,
+    `after network-online.target`). Every provider service is
+    `requiredBy`/`bindsTo` `corm.target`, so they come up and go down together.
+    The modules are:
     - `cpu-provider.nix` — `corm.cpu-provider`, `llama-cpp` kind on nixpkgs
       `llama-cpp`, with the multimodal projector (`--mmproj`) exported too. It
       takes its hardening, state dir and prepare/serve/warmup unit skeletons
@@ -295,16 +305,21 @@ carries the `# x-release-please-version` annotation so it is bumped alongside
 
 - `dev` is the nushell dispatcher:
   - `dev format` — regenerate `e2e/omw.test.base.json` (via
-    `nix build .#omw-scaffold-config` + `omw scaffold`), the vendored `omw.d.ts`
-    and `docs/options.md`, then run Prettier, taplo, nixfmt and Biome.
+    `nix build .#omw-scaffold-config` + `omw scaffold`), `services/tools.json`
+    (the tool names the scaffold exposes, minus the always-disabled ones), the
+    vendored `omw.d.ts` and `docs/options.md`, then run Prettier, taplo, nixfmt
+    and Biome.
   - `dev docs` — regenerate `docs/options.md` from `.#options`.
+  - `dev tools` — regenerate `services/tools.json` from the generated
+    `e2e/omw.test.base.json`.
   - `dev release` / `dev release-pr` — run the pinned `release-please` against
     `release-please-config.json` + `.release-please-manifest.json` (using
     `GITHUB_TOKEN` and `GITHUB_REPOSITORY`); the release workflow calls
     `dev release`.
   - `dev lint` — `lint check` + `lint test` + `lint nix`.
-    - `dev lint check` — verify `omw.d.ts` and `docs/options.md` are fresh, that
-      no tooling in the base config is empty, and run
+    - `dev lint check` — verify `omw.d.ts`, `docs/options.md` and
+      `services/tools.json` are fresh, that no tooling in the base config is
+      empty, and run
       Prettier/taplo/nixfmt/cspell/markdownlint/markdown-link-check/Biome in
       check mode.
     - `dev lint test` — `test unit` + `test e2e`.
@@ -324,7 +339,8 @@ carries the `# x-release-please-version` annotation so it is bumped alongside
   - `dev container client` — write an ignored `.corm-aichat.yaml` pointed at the
     endpoint and launch `aichat` against it.
   - `dev` also exposes `corm e2e test base`, `corm e2e test dump`,
-    `corm omw types path`, `corm omw types url` and `corm system`.
+    `corm omw types path`, `corm omw types url`, `corm tools path` and
+    `corm system`.
 - Unit tests live in `src/<pkg>/test/`, mirroring the source tree; each package
   carries its own `vitest.config.ts` (the root `vitest.config.ts` globs
   `src/*/vitest.config.ts`) with `include: ["test/**/*.ts"]` and the shared

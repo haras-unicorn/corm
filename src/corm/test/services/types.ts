@@ -15,6 +15,13 @@ test("config requires a model", () => {
   expect(() => cormConfigZod.parse({})).toThrow();
 });
 
+test("config accepts an optional tools subset", () => {
+  expect(cormConfigZod.parse({ model: "qwen", tools: ["read_file"] })).toEqual({
+    model: "qwen",
+    tools: ["read_file"],
+  });
+});
+
 test("subscriptions require lifecycle, endpoint and model", () => {
   expect(
     cormSubscriptionsZod.parse({

@@ -1,3 +1,4 @@
+import disabledTools from "corm/lib/disabled-tools.json";
 import { type CormLogger, createCormLogger } from "corm/lib/log";
 import type { CormAnyToolingHandle } from "corm/lib/omw";
 import type { CormHandles } from "./handles";
@@ -35,22 +36,42 @@ export interface CormTooling {
   settle(event: OmwEvent): CormToolSettlement | undefined;
 }
 
-export const createCormTooling = (handles: CormHandles) =>
-  new OmwCormTooling(handles) as CormTooling;
+export const createCormTooling = (
+  handles: CormHandles,
+  allowed?: readonly string[],
+) => new OmwCormTooling(handles, allowed) as CormTooling;
 
 class OmwCormTooling {
   private _logger: CormLogger;
   private _registry: Map<string, CormToolEntry>;
   private _pending: Map<string, CormToolCall>;
 
-  constructor(handles: CormHandles) {
+  constructor(handles: CormHandles, allowed?: readonly string[]) {
     this._logger = createCormLogger(handles.host());
     this._registry = new Map();
     this._pending = new Map();
 
+    const disabled = new Set(disabledTools);
+    const allowedSet = allowed !== undefined ? new Set(allowed) : undefined;
+    const seen = new Set<string>();
+
     for (const tooling of handles.toolings()) {
       for (const tool of tooling.handle.listTools()) {
-        const exposed = `${cormToolPrefix}${tool.name}`;
+        const name = `${tooling.name}__${tool.name}`;
+        seen.add(name);
+
+        if (disabled.has(name)) {
+          this._logger.debug(
+            `always-disabled corm tool ${name} from ${tooling.name} is never exposed`,
+          );
+          continue;
+        }
+
+        if (allowedSet !== undefined && !allowedSet.has(name)) {
+          continue;
+        }
+
+        const exposed = `${cormToolPrefix}${name}`;
         if (this._registry.has(exposed)) {
           this._logger.warn(
             `corm tool ${exposed} from ${tooling.name} shadows another tooling's tool`,
@@ -61,6 +82,16 @@ class OmwCormTooling {
           handle: tooling.handle,
           tool,
         });
+      }
+    }
+
+    if (allowedSet !== undefined) {
+      for (const name of allowedSet) {
+        if (!seen.has(name)) {
+          this._logger.warn(
+            `configured corm tool ${name} does not exist in any tooling`,
+          );
+        }
       }
     }
 

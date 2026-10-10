@@ -85,7 +85,11 @@ test("chat executes corm-owned tools and re-prompts", () => {
   const gen1 = subscriptions.generation as string;
   handler.handle(
     chatDelta(gen1, {
-      toolCall: { id: "call-1", name: "corm__echo", arguments: '{"in":"hi"}' },
+      toolCall: {
+        id: "call-1",
+        name: "corm__filesystem__echo",
+        arguments: '{"in":"hi"}',
+      },
     }),
   );
   expect(handler.handle(chatEnd(gen1))).toBe("running");
@@ -118,12 +122,20 @@ test("chat replaces cumulative tool-call argument deltas", () => {
   // concatenation would duplicate them.
   handler.handle(
     chatDelta(gen, {
-      toolCall: { id: "call-1", name: "corm__echo", arguments: '{"in"' },
+      toolCall: {
+        id: "call-1",
+        name: "corm__filesystem__echo",
+        arguments: '{"in"',
+      },
     }),
   );
   handler.handle(
     chatDelta(gen, {
-      toolCall: { id: "call-1", name: "corm__echo", arguments: '{"in":"hi"}' },
+      toolCall: {
+        id: "call-1",
+        name: "corm__filesystem__echo",
+        arguments: '{"in":"hi"}',
+      },
     }),
   );
   expect(handler.handle(chatEnd(gen))).toBe("running");
@@ -143,12 +155,20 @@ test("chat concatenates non-overlapping tool-call argument fragments", () => {
 
   handler.handle(
     chatDelta(gen, {
-      toolCall: { id: "call-1", name: "corm__echo", arguments: '{"in":' },
+      toolCall: {
+        id: "call-1",
+        name: "corm__filesystem__echo",
+        arguments: '{"in":',
+      },
     }),
   );
   handler.handle(
     chatDelta(gen, {
-      toolCall: { id: "call-1", name: "corm__echo", arguments: '"hi"}' },
+      toolCall: {
+        id: "call-1",
+        name: "corm__filesystem__echo",
+        arguments: '"hi"}',
+      },
     }),
   );
   expect(handler.handle(chatEnd(gen))).toBe("running");
@@ -235,7 +255,11 @@ test("chat injects the configured prompt on every provider call", () => {
   const gen = subscriptions.generation as string;
   handler.handle(
     chatDelta(gen, {
-      toolCall: { id: "call-1", name: "corm__echo", arguments: "{}" },
+      toolCall: {
+        id: "call-1",
+        name: "corm__filesystem__echo",
+        arguments: "{}",
+      },
     }),
   );
   expect(handler.handle(chatEnd(gen))).toBe("running");
