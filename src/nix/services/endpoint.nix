@@ -15,7 +15,7 @@
         model = "corm-endpoint:${config.corm.endpoint.model}";
         stream = true;
         repl_prelude = "session:corm";
-        save_session = false;
+        save_session = true;
         compress_threshold = 0;
         clients = [
           {

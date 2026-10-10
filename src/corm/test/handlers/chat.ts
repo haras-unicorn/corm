@@ -286,6 +286,29 @@ test("chat leaves the message list unmodified without a prompt", () => {
   expect(provider.calls[0].messages).toEqual([{ role: "user", content: "hi" }]);
 });
 
+test("chat trims history to the last 32 messages", () => {
+  const provider = makeProvider("gpu");
+  const { context } = makeSetup([provider], []);
+  const history: ChatMessage[] = Array.from({ length: 40 }, (_, index) => ({
+    role: index % 2 === 0 ? "user" : "assistant",
+    content: `m${index}`,
+  }));
+  const start = endpointMessage("s1", history);
+  const handler = new CormChatHandler(context, "1", start);
+
+  handler.handle(start);
+
+  expect(provider.calls[0].messages).toHaveLength(32);
+  expect(provider.calls[0].messages[0]).toEqual({
+    role: "user",
+    content: "m8",
+  });
+  expect(provider.calls[0].messages[31]).toEqual({
+    role: "assistant",
+    content: "m39",
+  });
+});
+
 test("chat falls back to the first provider model when the config model is empty", () => {
   const provider = makeProvider("gpu", ["mock-model"]);
   const { context } = makeSetup([provider], [], { model: "" });
