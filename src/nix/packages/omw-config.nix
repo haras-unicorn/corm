@@ -120,6 +120,17 @@
                 kind = "mcp";
                 transport = "stdio";
                 command = lib.getExe mcp-nix;
+                env.MCP_NIX_SANDBOX = builtins.concatStringsSep " " (
+                  [
+                    "--unshare-all"
+                  ]
+                  ++ (if cormBwrapArgs != null then cormBwrapArgs else selfLib.bwrap.base)
+                  ++ [
+                    "--bind"
+                    cormWorkspaceDir
+                    cormWorkspaceDir
+                  ]
+                );
               };
 
               git = {

@@ -109,7 +109,10 @@ agent wants to change itself" to "the change exists in the real world."
     (`mcp-server-filesystem-bwrap` and `git-mcp-server-ssh-agent`) take a
     `bwrapArgs` `callPackage` argument (null keeps `selfLib.bwrap.base`);
     `omw-config.nix` takes `cormBwrapArgs` so a deployment can swap the bind
-    set.
+    set. The `nix` tooling points mcp-nix's own sandbox (via `MCP_NIX_SANDBOX`,
+    whitespace-split) at that same bind set, keeps its `--unshare-all`, and
+    binds the agent workspace read-write so `nix_run` / `nix_develop` can work
+    inside it.
     - `strata.nix` exposes `cormPackages.strata-engine` (CMake/Ninja with CUDA
       13, the pinned llama.cpp passed as `STRATA_GGML_DIR`),
       `cormPackages.strata-tools` (server, pack tools, `data/` and vendored
