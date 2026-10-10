@@ -216,7 +216,7 @@ def "main container client" [] {
   {
     model: "corm-endpoint:corm"
     stream: true
-    repl_prelude: "session:corm"
+    repl_prelude: "session:corm-dev"
     save_session: false
     compress_threshold: 0
     clients: [

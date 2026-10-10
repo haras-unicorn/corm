@@ -57,9 +57,10 @@ agent wants to change itself" to "the change exists in the real world."
   list shared with the Nix tooling list.
 - `src/corm/src/handlers/chat.ts` is the one handler: the async MCP tool loop.
   It selects a provider with fallback (gpu → remote → cpu), reads the model from
-  the config service (falling back to `provider.listModels()[0]`), injects the
-  configured `prompt` as the leading system message on every `_beginTurn` (the
-  stored `_messages` stays prompt-free, so it survives a merge and is never
+  the config service (falling back to `provider.listModels()[0]`), trims the
+  stored `_messages` to the last 32 before each turn, injects the configured
+  `prompt` as the leading system message on every `_beginTurn` (the stored
+  `_messages` stays prompt-free, so it survives a merge and is never
   duplicated), streams text/reasoning/usage/tool-call deltas to the endpoint,
   executes `corm__*` calls via the tooling layer and re-prompts, and forwards
   unknown/client tool calls to the endpoint without executing them.

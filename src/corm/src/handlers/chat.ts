@@ -5,6 +5,8 @@ import type { CormToolCall } from "corm/services/tooling";
 
 type CormEndpointMessage = OmwEvent & { kind: "endpoint-message" };
 
+const CORM_MAX_HISTORY_MESSAGES = 32;
+
 class CormChatHandler {
   public static kind(): string {
     return "chat";
@@ -210,10 +212,11 @@ class CormChatHandler {
     const model = this._context.config.model || provider.listModels()[0] || "";
     const prompt = this._context.config.prompt;
 
+    const history = this._messages.slice(-CORM_MAX_HISTORY_MESSAGES);
     const messages: ChatMessage[] =
       prompt !== undefined && prompt !== ""
-        ? [{ role: "system", content: prompt }, ...this._messages]
-        : this._messages;
+        ? [{ role: "system", content: prompt }, ...history]
+        : history;
 
     this._context.logger.info(
       `starting turn on provider ${provider.name} model ${model} with ${messages.length} message(s) and ${this._tools.length} tool(s)`,
