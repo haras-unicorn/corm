@@ -16,6 +16,7 @@
         stream = true;
         repl_prelude = "session:corm";
         save_session = false;
+        compress_threshold = 0;
         clients = [
           {
             type = "openai-compatible";

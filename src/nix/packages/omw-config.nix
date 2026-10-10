@@ -131,6 +131,7 @@
                   MCP_LOG_LEVEL = "warn";
                   GIT_BASE_DIR = "${cormWorkspaceDir}/projects";
                   GIT_SSH_DIR = "${cormDataDir}/ssh";
+                  GIT_SIGN_COMMITS = "false";
                 };
               };
 
