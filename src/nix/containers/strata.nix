@@ -16,7 +16,7 @@
         portable ? true,
         march ? "",
         vision ? "none",
-        visionReserveMib ? 1500,
+        vramReserveMib ? null,
         kv ? "int8",
         prefill ? "auto",
         spec ? 4,
@@ -37,7 +37,7 @@
               portable
               march
               vision
-              visionReserveMib
+              vramReserveMib
               kv
               prefill
               spec
