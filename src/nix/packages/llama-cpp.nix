@@ -1,7 +1,7 @@
 { self, selfLib, ... }:
 
 {
-  flake.overlays.llama-cpp-moe-cache-cuda =
+  flake.overlays.llama-cpp =
     final: prev:
     let
       pkgs = final;
@@ -26,6 +26,7 @@
     in
     (lib.optionalAttrs cuda {
       cormPackages = (prev.cormPackages or { }) // {
+        llama-cpp = final.llama-cpp;
         llama-cpp-moe-cache-cuda = package // {
           passthru.fateMoeCache = true;
         };
@@ -46,10 +47,16 @@
             inherit system;
             cuda = true;
           }).extend
-            self.overlays.llama-cpp-moe-cache-cuda
+            self.overlays.llama-cpp
         ).cormPackages;
     in
     {
+      packages.llama-cpp = cormPackages.llama-cpp;
+      apps.llama-cpp = {
+        type = "app";
+        program = lib.getExe cormPackages.llama-cpp;
+        meta.description = "llama.cpp local inference server";
+      };
       packages.llama-cpp-moe-cache-cuda = cormPackages.llama-cpp-moe-cache-cuda;
       apps.llama-cpp-moe-cache-cuda = {
         type = "app";
