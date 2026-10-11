@@ -1,4 +1,5 @@
 import type {
+  CormConfig,
   CormMaterializedTaskSpec,
   CormOutcome,
   CormTask,
@@ -20,9 +21,16 @@ export const createCormHandlerRegistrar = (context: CormContext) =>
 export interface CormHandlerFactory {
   kind(): string;
 
+  prompt(config: CormConfig): string;
+
   should(event: OmwEvent): CormTaskSpec | undefined;
 
-  new (context: CormContext, id: string, taskState: CormTaskState): CormHandler;
+  new (
+    context: CormContext,
+    id: string,
+    taskState: CormTaskState,
+    name: string,
+  ): CormHandler;
 }
 
 export interface CormHandler {
@@ -64,6 +72,6 @@ class RegistryCormHandlerRegistrar {
       throw new Error(`unknown factory kind ${task.kind}`);
     }
 
-    return new factory(this._context, task.id, task.state);
+    return new factory(this._context, task.id, task.state, task.kind);
   }
 }

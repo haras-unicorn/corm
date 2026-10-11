@@ -165,7 +165,7 @@ def "main release" [] {
 
 def "main container start" [
   name: string
-  args?: record
+  args?: string
   --eval-only
   --build-only
 ] {
@@ -177,7 +177,7 @@ def "main container start" [
     } else {
       { }
     }
-  } else { $args }
+  } else { $args | from json }
   let json = ($args | to json)
   let apply = (
     $"container: container \"(corm system)\" \"($name)\""
@@ -206,7 +206,7 @@ def "main container start" [
       } else {
         [ ]
       }
-      (sudo ($nspawn | path join "bin" "run-nspawn") ...$env_args)
+      (sudo ($nspawn | path join "bin" "run-nspawn") ...($env_args))
     }
   }
 }
@@ -234,7 +234,7 @@ def "main container client" [] {
   with-env { AICHAT_CONFIG_FILE: ".corm-aichat.yaml" } { aichat }
 }
 
-def "main bench" [name: string, args?: record, --eval-only] {
+def "main bench" [name: string, args?: string, --eval-only] {
   cd (flake-root)
   let args = if $args == null {
     if (".corm-bench-config.toml" | path exists) {
@@ -242,7 +242,7 @@ def "main bench" [name: string, args?: record, --eval-only] {
     } else {
       { }
     }
-  } else { $args }
+  } else { $args | from json }
   let seed = (random chars)
   let json = ($args | upsert seed $seed | to json)
   let apply = (

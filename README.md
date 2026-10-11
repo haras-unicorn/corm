@@ -10,6 +10,14 @@ single local agent. The agent itself is a configuration on top of it.
 
 [omw]: https://github.com/haras-unicorn/omw
 
+## Design
+
+Corm targets constrained single-GPU, single-agent setups, and it achieves a 100%
+provider KV-cache hit rate: the shared context window only ever grows, and
+compaction folds old messages into a rolling summary while re-appending its
+instruction at the end, so the cached prefix is never rewritten and prefill is
+paid once.
+
 ## Install
 
 To deploy Corm on a NixOS machine, add the flake as an input and import
@@ -38,14 +46,16 @@ To deploy Corm on a NixOS machine, add the flake as an input and import
 
 ## Configure
 
-Corm runs a single agent. `corm.settings` seeds the agent's config , the enabled
+Corm runs a single agent. `corm.settings` seeds the agent's config, the enabled
 providers supply the model, and the agent name is the model name the endpoint
-subscribes under. Providers are tried in `gpu`, `remote`, `cpu` order:
+subscribes under. `contextLength` is required and set by the operator (the model
+only caps it). Providers are tried in `gpu`, `remote`, `cpu` order:
 
 ```nix
 {
   corm = {
     enable = true;
+    settings.contextLength = 131072;
     settings.prompt = "You are Corm, a local-first NixOS agent.";
     settings.tools = [ "git__git_status" "filesystem__read_file" ];
 

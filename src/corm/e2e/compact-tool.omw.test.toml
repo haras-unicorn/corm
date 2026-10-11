@@ -1,0 +1,41 @@
+# A tool settle can push the window over soft; compaction runs before the turn
+# resumes so the tool exchange does not blow the budget.
+#
+# Crucial: the summary chat_stream (compactPrompt) fires between the tool result
+# and the resumed chat_stream -- not after it.
+[endpoint]
+requests = [
+  { model = "corm", session_id = "corm", messages = [
+    { content = "m1" },
+    { content = "m2" },
+  ] },
+]
+
+[providers.gpu]
+turns = [
+  { tool_call = { id = "call-1", name = "corm__filesystem__echo", arguments = '{"input":"hi"}' }, usage = { prompt_tokens = 45 } },
+  { content = "compressed" },
+  { content = "resumed" },
+]
+
+[memory.corm]
+corm_config = { contextLength = 80, protectRatio = 0.125, protectMessages = 1, compactThreshold = 0.5, hardThreshold = 0.75, messageTokenLimit = 10, compactSummaryLimit = 10 }
+corm_state = {}
+
+[tooling.filesystem]
+tools = [{ name = "echo", description = "echo back", input_schema = {} }]
+tool_calls = [{ name = "echo", result = "hi" }]
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "call", op = "chat_stream" },
+  { kind = "call", op = "call_tool" },
+  { kind = "inbound", event = "tool-result" },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\nYour available context window is running low" },
+  ] } },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\n\\n\\n\\nThe following is a compacted summary of your previous context window\\.\\n\\ncompressed$" },
+  ] } },
+]

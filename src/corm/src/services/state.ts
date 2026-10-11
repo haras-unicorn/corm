@@ -1,25 +1,28 @@
 import { cormStateFile, cormStateKey } from "corm/lib/keys";
-import { type CormLogger, createCormLogger } from "corm/lib/log";
 import type { CormOmw, CormToolingHandle } from "corm/lib/omw";
 import { type CormGlobalState, cormStateZod } from "corm/lib/opaque";
 import { contentText } from "corm/lib/tools";
+import { type CormLogger, createCormLogger } from "corm/services/logger";
+import type { CormWindow } from "./window";
 
 export interface CormStateManager {
   load(): CormGlobalState;
   release(event: OmwEvent): void;
 }
 
-export const createCormStateManager = (omw: CormOmw) =>
-  new OmwCormStateManager(omw) as CormStateManager;
+export const createCormStateManager = (omw: CormOmw, window: CormWindow) =>
+  new OmwCormStateManager(omw, window) as CormStateManager;
 
 class OmwCormStateManager {
   private _omw: CormOmw;
   private _logger: CormLogger;
+  private _window: CormWindow;
   private _state?: CormGlobalState;
 
-  constructor(omw: CormOmw) {
+  constructor(omw: CormOmw, window: CormWindow) {
     this._omw = omw;
     this._logger = createCormLogger(omw.host);
+    this._window = window;
     this._state = undefined;
   }
 
@@ -74,6 +77,7 @@ class OmwCormStateManager {
         };
       }
       this._state = state;
+      this._window.restore(state.window);
 
       this._logger.debug(
         `restored task state pending=${state.pending.length} immediate=${state.immediate.length}`,
@@ -90,9 +94,11 @@ class OmwCormStateManager {
     }
 
     if (event.kind === "reload") {
+      this._state.window = this._window.snapshot();
       this._logger.info("persisting corm task state to memory");
       this._omw.host.memorySet(cormStateKey, JSON.stringify(this._state));
     } else if (event.kind === "shutdown") {
+      this._state.window = this._window.snapshot();
       // NOTE: this filesystem persistence is the single sanctioned blocking
       // call in corm; it runs once on shutdown so task state survives.
       this._logger.info("persisting corm task state to filesystem");

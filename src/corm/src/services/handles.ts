@@ -1,11 +1,11 @@
 import { cormSubscriptionsKey } from "corm/lib/keys";
-import { type CormLogger, createCormLogger } from "corm/lib/log";
 import type {
   CormAnyProviderHandle,
   CormAnyToolingHandle,
   CormOmw,
 } from "corm/lib/omw";
 import { type CormSubscriptions, cormSubscriptionsZod } from "corm/lib/opaque";
+import { type CormLogger, createCormLogger } from "corm/services/logger";
 
 export interface CormNamedTooling {
   name: string;

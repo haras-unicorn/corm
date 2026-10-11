@@ -18,4 +18,5 @@ ignoreWords:
   - nixos
   - mcp
   - fate
+  - evictable
   - performatively

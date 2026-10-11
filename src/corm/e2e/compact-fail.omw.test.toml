@@ -1,0 +1,46 @@
+# A failed summary generation is retried through the wake timer rather than
+# being treated as done, and it never falls back to another provider.
+#
+# Crucial: the provider errors on the first summary turn, then the same summary
+# chat_stream is issued again before the resumed turn -- the main turn is not
+# lost and the window is not compacted with a partial summary.
+[endpoint]
+requests = [
+  { model = "corm", session_id = "corm", messages = [
+    { content = "m1" },
+    { content = "m2" },
+  ] },
+]
+
+[providers.gpu]
+turns = [
+  { tool_call = { id = "call-1", name = "corm__filesystem__echo", arguments = '{"input":"hi"}' }, usage = { prompt_tokens = 45 } },
+  { error = "boom" },
+  { content = "compressed" },
+  { content = "resumed" },
+]
+
+[memory.corm]
+corm_config = { contextLength = 80, protectRatio = 0.125, protectMessages = 1, compactThreshold = 0.5, hardThreshold = 0.75, messageTokenLimit = 10, compactSummaryLimit = 10 }
+corm_state = {}
+
+[tooling.filesystem]
+tools = [{ name = "echo", description = "echo back", input_schema = {} }]
+tool_calls = [{ name = "echo", result = "hi" }]
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "call", op = "chat_stream" },
+  { kind = "call", op = "call_tool" },
+  { kind = "inbound", event = "tool-result" },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\nYour available context window is running low" },
+  ] } },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\nYour available context window is running low" },
+  ] } },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\n\\n\\n\\nThe following is a compacted summary of your previous context window\\.\\n\\ncompressed$" },
+  ] } },
+]

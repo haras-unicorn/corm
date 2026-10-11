@@ -28,46 +28,81 @@ function makeOmw(
 }
 
 test("load returns the validated nested seed", () => {
-  const memory = new Map([[cormConfigKey, JSON.stringify({ model: "qwen" })]]);
+  const memory = new Map([
+    [cormConfigKey, JSON.stringify({ model: "qwen", contextLength: 131072 })],
+  ]);
   const manager = createCormConfigManager(makeOmw(memory));
 
-  expect(manager.load()).toEqual({ model: "qwen" });
+  expect(manager.load()).toEqual({ model: "qwen", contextLength: 131072 });
 });
 
 test("load overlays flat memory keys onto the nested config", () => {
   const memory = new Map([
-    [cormConfigKey, JSON.stringify({ model: "qwen", prompt: "base" })],
+    [
+      cormConfigKey,
+      JSON.stringify({
+        model: "qwen",
+        contextLength: 131072,
+        prompt: "base",
+      }),
+    ],
   ]);
   memory.set(`${cormConfigKey}_prompt`, "be terse");
   const manager = createCormConfigManager(makeOmw(memory));
 
-  expect(manager.load()).toEqual({ model: "qwen", prompt: "be terse" });
+  expect(manager.load()).toEqual({
+    model: "qwen",
+    contextLength: 131072,
+    prompt: "be terse",
+  });
 });
 
 test("load assembles from flat memory keys without a nested object", () => {
-  const memory = new Map([[`${cormConfigKey}_model`, "qwen"]]);
+  const memory = new Map([
+    [`${cormConfigKey}_model`, "qwen"],
+    [`${cormConfigKey}_contextLength`, "131072"],
+  ]);
   const manager = createCormConfigManager(makeOmw(memory));
 
-  expect(manager.load()).toEqual({ model: "qwen" });
+  expect(manager.load()).toEqual({ model: "qwen", contextLength: 131072 });
 });
 
-test("load reads flat prompts as raw strings, not JSON", () => {
-  const memory = new Map([[cormConfigKey, JSON.stringify({ model: "qwen" })]]);
-  memory.set(`${cormConfigKey}_prompt`, '{"a":1}');
+test("load coerces flat overlay values by JSON, falling back to the raw string", () => {
+  const memory = new Map([
+    [cormConfigKey, JSON.stringify({ model: "qwen", contextLength: 131072 })],
+  ]);
+  memory.set(`${cormConfigKey}_replayRatio`, "0.1");
+  memory.set(`${cormConfigKey}_prompt`, "be terse");
   const manager = createCormConfigManager(makeOmw(memory));
 
-  expect(manager.load()).toEqual({ model: "qwen", prompt: '{"a":1}' });
+  expect(manager.load()).toEqual({
+    model: "qwen",
+    contextLength: 131072,
+    replayRatio: 0.1,
+    prompt: "be terse",
+  });
 });
 
-test("load falls back to an empty model on an invalid seed", () => {
+test("load throws on an invalid seed", () => {
   const memory = new Map([[cormConfigKey, JSON.stringify({ nope: true })]]);
   const manager = createCormConfigManager(makeOmw(memory));
 
-  expect(manager.load()).toEqual({ model: "" });
+  expect(() => manager.load()).toThrow();
+});
+
+test("load throws when contextLength violates the protect bound", () => {
+  const memory = new Map([
+    [cormConfigKey, JSON.stringify({ model: "qwen", contextLength: 1024 })],
+  ]);
+  const manager = createCormConfigManager(makeOmw(memory));
+
+  expect(() => manager.load()).toThrow();
 });
 
 test("load reads memory once and caches the result", () => {
-  const memory = new Map([[cormConfigKey, JSON.stringify({ model: "qwen" })]]);
+  const memory = new Map([
+    [cormConfigKey, JSON.stringify({ model: "qwen", contextLength: 131072 })],
+  ]);
   const calls = { count: 0 };
   const manager = createCormConfigManager(makeOmw(memory, calls));
 
@@ -79,7 +114,9 @@ test("load reads memory once and caches the result", () => {
 });
 
 test("release is a no-op", () => {
-  const memory = new Map([[cormConfigKey, JSON.stringify({ model: "qwen" })]]);
+  const memory = new Map([
+    [cormConfigKey, JSON.stringify({ model: "qwen", contextLength: 131072 })],
+  ]);
   const manager = createCormConfigManager(makeOmw(memory));
 
   expect(() =>

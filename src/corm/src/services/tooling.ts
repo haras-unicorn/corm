@@ -1,6 +1,6 @@
 import disabledTools from "corm/lib/disabled-tools.json";
-import { type CormLogger, createCormLogger } from "corm/lib/log";
 import type { CormAnyToolingHandle } from "corm/lib/omw";
+import { type CormLogger, createCormLogger } from "corm/services/logger";
 import type { CormHandles } from "./handles";
 
 export const cormToolPrefix = "corm__";

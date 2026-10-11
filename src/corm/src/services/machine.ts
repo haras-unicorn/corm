@@ -63,23 +63,28 @@ class OmwCormMachine {
 
     const materialized = this._registrar.should(event);
     if (materialized !== undefined) {
-      this._materialize(materialized);
+      this._materialize(materialized, event);
     }
 
     this._dispatch(event);
   }
 
-  private _materialize(materialized: CormMaterializedTaskSpec): void {
+  private _materialize(
+    materialized: CormMaterializedTaskSpec,
+    event: OmwEvent,
+  ): void {
     const spec = materialized.spec;
 
-    if (
-      spec.key !== undefined &&
-      this._immediateByKey(spec.key) !== undefined
-    ) {
-      this._logger.debug(
-        `merging ${materialized.kind} into the active task for key ${spec.key}`,
-      );
-      return;
+    if (spec.key !== undefined) {
+      const active = this._immediateByKey(spec.key);
+      const handler =
+        active !== undefined ? this._handlers[active.id] : undefined;
+      if (handler?.accepts(event)) {
+        this._logger.debug(
+          `merging ${materialized.kind} into the active task for key ${spec.key}`,
+        );
+        return;
+      }
     }
 
     const blocked =
@@ -88,6 +93,21 @@ class OmwCormMachine {
       this._state.immediate.some(
         (task) => this._meta[task.id]?.atomic === true,
       );
+
+    const pending = blocked || spec.placement !== "immediate";
+
+    if (pending) {
+      const coalesced = this._pendingByKindKey(materialized.kind, spec.key);
+      if (coalesced !== undefined) {
+        this._logger.debug(
+          `coalescing ${materialized.kind} task ${coalesced.id} for key ${spec.key}`,
+        );
+        coalesced.state = spec.state;
+        this._handlers[coalesced.id] = this._registrar.create(coalesced);
+        this._meta[coalesced.id] = { key: spec.key, atomic: spec.atomic };
+        return;
+      }
+    }
 
     const task: CormTask = {
       kind: materialized.kind,
@@ -98,7 +118,7 @@ class OmwCormMachine {
     this._handlers[task.id] = this._registrar.create(task);
     this._meta[task.id] = { key: spec.key, atomic: spec.atomic };
 
-    if (spec.placement === "immediate" && !blocked) {
+    if (!pending) {
       this._logger.info(`started ${task.kind} task ${task.id} immediately`);
       this._state.immediate.push(task);
     } else {
@@ -142,23 +162,31 @@ class OmwCormMachine {
       return;
     }
 
-    const pending = this._state.pending;
-    this._state.pending = [];
-    if (pending.length > 0) {
-      this._logger.info(`draining ${pending.length} pending task(s)`);
+    const next = this._state.pending.shift();
+    if (next === undefined) {
+      return;
     }
-    for (const task of pending) {
-      this._state.immediate.push(task);
-      const handler = this._handlers[task.id];
-      if (handler !== undefined) {
-        handler.handle(task.state as OmwEvent);
-      }
+
+    this._logger.info(`starting pending ${next.kind} task ${next.id}`);
+    this._state.immediate.push(next);
+    const handler = this._handlers[next.id];
+    if (
+      handler !== undefined &&
+      handler.handle(next.state as OmwEvent) === "complete"
+    ) {
+      this._complete(next.id);
     }
   }
 
   private _immediateByKey(key: string): CormTask | undefined {
     return this._state.immediate.find(
       (task) => this._meta[task.id]?.key === key,
+    );
+  }
+
+  private _pendingByKindKey(kind: string, key?: string): CormTask | undefined {
+    return this._state.pending.find(
+      (task) => task.kind === kind && this._meta[task.id]?.key === key,
     );
   }
 }

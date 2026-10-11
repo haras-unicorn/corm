@@ -1,7 +1,16 @@
+import { validateConfig } from "corm/lib/config";
 import { cormConfigKey } from "corm/lib/keys";
-import { type CormLogger, createCormLogger } from "corm/lib/log";
 import type { CormOmw } from "corm/lib/omw";
 import { type CormConfig, cormConfigZod } from "corm/lib/opaque";
+import { type CormLogger, createCormLogger } from "corm/services/logger";
+
+const coerce = (value: string): unknown => {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+};
 
 export interface CormConfigManager {
   load(): CormConfig;
@@ -36,25 +45,19 @@ class OmwCormConfigManager {
         const value = this._omw.host.memoryGet(`${cormConfigKey}_${key}`);
         if (value !== undefined) {
           this._logger.trace(`config overridden by ${cormConfigKey}_${key}`);
-          seed[key] = value;
+          seed[key] = coerce(value);
         }
       }
 
-      const parsed = cormConfigZod.safeParse(seed);
-      if (!parsed.success) {
-        this._logger.error(
-          "invalid corm config; falling back to the default model",
-        );
-        this._config = { model: "" };
-        return this._config;
-      }
+      const parsed = cormConfigZod.parse(seed);
+      validateConfig(parsed);
 
       this._logger.debug(
-        `loaded corm config model=${parsed.data.model} prompt=${
-          parsed.data.prompt !== undefined ? "set" : "unset"
+        `loaded corm config model=${parsed.model} contextLength=${parsed.contextLength} prompt=${
+          parsed.prompt !== undefined ? "set" : "unset"
         }`,
       );
-      this._config = parsed.data;
+      this._config = parsed;
     }
 
     return this._config;

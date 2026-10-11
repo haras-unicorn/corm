@@ -1,3 +1,6 @@
+# An empty configured model falls back to the provider's first listed model.
+#
+# Crucial: the provider is called with `mock-model`, not an empty name.
 [endpoint]
 requests = [
   { model = "corm", session_id = "corm", messages = [
@@ -10,8 +13,8 @@ models = ["mock-model"]
 turns = [{ content = "hello" }]
 
 [memory.corm]
-"corm_config" = { model = "" }
-"corm-state" = "{}"
+corm_config = { model = "" }
+corm_state = {}
 
 [assertions.corm]
 outcome = "asserted"

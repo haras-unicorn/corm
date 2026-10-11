@@ -421,15 +421,16 @@
         "rust-overlay": "rust-overlay_4"
       },
       "locked": {
-        "lastModified": 1791526640,
-        "narHash": "sha256-CNQkTSx7ZpEcnopthuf5lL5sxTMR59cimQl6DA4JePM=",
+        "lastModified": 1791749264,
+        "narHash": "sha256-VsQuqdxH0Lb1wrEuJa8/MrnSgMGnUEtu32ImIE+FauA=",
         "owner": "haras-unicorn",
         "repo": "omw",
-        "rev": "81146ab721f21e15ed8b38ad8049e1df82e81ace",
+        "rev": "dc1d157c9a71feb751204b734ef475af5c93ef61",
         "type": "github"
       },
       "original": {
         "owner": "haras-unicorn",
+        "ref": "refs/tags/v0.1.9",
         "repo": "omw",
         "type": "github"
       }

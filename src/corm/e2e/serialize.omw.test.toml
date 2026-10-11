@@ -1,0 +1,30 @@
+# Only one chat generation may run at a time (one model, one KV cache), so a
+# second session's message injected mid-turn is queued until the active turn
+# completes.
+#
+# Crucial: `after` injects `corm2`'s request while `corm`'s chat_stream is live;
+# the observed order is chat_stream -> chat-end -> chat_stream, proving there is
+# no concurrent generation and therefore a single window writer.
+[endpoint]
+requests = [
+  { model = "corm", session_id = "corm", messages = [
+    { content = "one" },
+  ] },
+  { model = "corm", session_id = "corm2", messages = [
+    { content = "two" },
+  ], after = { kind = "call", op = "^chat_stream$" } },
+]
+
+[providers.gpu]
+turns = [{ content = "first" }, { content = "second" }]
+
+[memory.corm]
+corm_state = {}
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "call", op = "chat_stream" },
+  { kind = "inbound", event = "chat-end" },
+  { kind = "call", op = "chat_stream" },
+]

@@ -1,0 +1,52 @@
+# Compaction evicts the older messages but always keeps the protected tail.
+#
+# Setup: a 12-message seeded window means the compactor has an evictable set,
+# while the protected tail stays verbatim.
+#
+# Crucial: after the summary turn, the next provider call still ends with the
+# recent `new` message -- continuity of the latest turns is preserved even as the
+# older ones are folded into the summary.
+[endpoint]
+requests = [
+  { model = "corm", session_id = "corm", messages = [
+    { content = "new" },
+  ] },
+]
+
+[providers.gpu]
+turns = [{ content = "compressed" }, { content = "done" }]
+
+[memory.corm]
+corm_config = { contextLength = 80, protectRatio = 0.5, protectMessages = 32, compactThreshold = 0.7, hardThreshold = 0.9, messageTokenLimit = 20, compactSummaryLimit = 20 }
+[memory.corm.corm_state]
+pending = []
+immediate = []
+
+[memory.corm.corm_state.window]
+messages = [
+  { role = "user", content = "p1" },
+  { role = "user", content = "p2" },
+  { role = "user", content = "p3" },
+  { role = "user", content = "p4" },
+  { role = "user", content = "p5" },
+  { role = "user", content = "p6" },
+  { role = "user", content = "p7" },
+  { role = "user", content = "p8" },
+  { role = "user", content = "p9" },
+  { role = "user", content = "p10" },
+  { role = "user", content = "p11" },
+  { role = "user", content = "p12" },
+]
+epoch = 0
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\nYour available context window is running low" },
+  ] } },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\n\\n\\n\\nThe following is a compacted summary of your previous context window\\.\\n\\ncompressed$" },
+    { role = "user", content = "^⟦client⟧\\n\\nnew$" },
+  ] } },
+]

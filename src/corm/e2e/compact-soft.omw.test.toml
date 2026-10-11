@@ -1,0 +1,57 @@
+# Soft compaction runs after a turn ends and before the next provider call.
+#
+# Setup: a tiny context (80 tokens) with a 0.7 soft threshold and a `usage` of 60
+# prompt tokens from the turn crosses the threshold, so the handler must compact
+# before serving the next request. The seeded window gives the compactor an
+# evictable set while the protected tail stays.
+#
+# Crucial: the order is turn chat_stream -> chat-end -> summary chat_stream
+# (compactPrompt) -> the next request's chat_stream carrying the new summary
+# system message. Compaction must never block the answer that triggered it.
+[endpoint]
+requests = [
+  { model = "corm", session_id = "corm", messages = [
+    { content = "new" },
+  ] },
+  { model = "corm", session_id = "corm2", messages = [
+    { content = "new" },
+    { content = "more" },
+  ] },
+]
+
+[providers.gpu]
+turns = [
+  { content = "answer", usage = { prompt_tokens = 75 } },
+  { content = "compressed" },
+  { content = "next" },
+]
+
+[memory.corm]
+corm_config = { contextLength = 100, protectRatio = 0.5, protectMessages = 32, compactThreshold = 0.7, hardThreshold = 0.9, messageTokenLimit = 20, compactSummaryLimit = 20 }
+[memory.corm.corm_state]
+pending = []
+immediate = []
+
+[memory.corm.corm_state.window]
+messages = [
+  { role = "user", content = "p1" },
+  { role = "user", content = "p2" },
+  { role = "user", content = "p3" },
+  { role = "user", content = "p4" },
+  { role = "user", content = "p5" },
+  { role = "user", content = "p6" },
+]
+epoch = 0
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "call", op = "chat_stream" },
+  { kind = "inbound", event = "chat-end" },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\nYour available context window is running low" },
+  ] } },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\n\\n\\n\\nThe following is a compacted summary of your previous context window\\.\\n\\ncompressed$" },
+  ] } },
+]

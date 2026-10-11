@@ -1,8 +1,9 @@
-import { createCormLogger } from "corm/lib/log";
 import type { CormConfig, CormSubscriptions } from "corm/lib/opaque";
 import type { CormContext } from "corm/services/context";
 import type { CormHandles, CormNamedTooling } from "corm/services/handles";
+import { createCormLogger } from "corm/services/logger";
 import { createCormTooling } from "corm/services/tooling";
+import { createCormWindow } from "corm/services/window";
 
 export interface FakeHostCounters {
   lifecycle: number;
@@ -94,7 +95,12 @@ export const makeHost = (overrides: Partial<Host> = {}): FakeHost => {
 };
 
 export interface FakeProvider extends ProviderHandle {
-  calls: { model: string; messages: ChatMessage[]; tools: ChatTool[] }[];
+  calls: {
+    model: string;
+    messages: ChatMessage[];
+    tools: ChatTool[];
+    params: unknown;
+  }[];
   cancelled: string[];
 }
 
@@ -113,9 +119,14 @@ export const makeProvider = (
     chat: () => {
       throw new Error("blocking chat is banned");
     },
-    chatStream: (model: string, messages: ChatMessage[], tools: ChatTool[]) => {
+    chatStream: (
+      model: string,
+      messages: ChatMessage[],
+      tools: ChatTool[],
+      params?: unknown,
+    ) => {
       counter += 1;
-      calls.push({ model, messages, tools });
+      calls.push({ model, messages, tools, params });
       return `${name}-gen-${counter}`;
     },
     isOpen: () => true,
@@ -201,11 +212,12 @@ export const makeHandles = (options: {
 
 export const makeContext = (
   handles: CormHandles,
-  config: CormConfig = { model: "model" },
+  config: CormConfig = { model: "model", contextLength: 131072 },
 ): CormContext => ({
   handles,
   config,
   tooling: createCormTooling(handles, config.tools),
+  window: createCormWindow(config, undefined),
   logger: createCormLogger(handles.host()),
 });
 

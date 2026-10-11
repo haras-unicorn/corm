@@ -1,0 +1,41 @@
+# Every message entering the window is truncated to `messageTokenLimit` before
+# any addressing, keeping the head and tail and replacing the middle.
+#
+# Crucial: the oversized tool result arrives at the next provider call as
+# head + `<truncated>` + tail, with a `truncationHint` system message next to it
+# so the model can re-read the full content. A single message can never fill the
+# protected region.
+[endpoint]
+requests = [
+  { model = "corm", session_id = "corm", messages = [
+    { content = "use echo" },
+  ] },
+]
+
+[providers.gpu]
+turns = [
+  { tool_call = { id = "call-1", name = "corm__filesystem__echo", arguments = '{"input":"big"}' } },
+  { content = "done" },
+]
+
+[memory.corm]
+corm_config = { messageTokenLimit = 10 }
+corm_state = {}
+
+[tooling.filesystem]
+tools = [{ name = "echo", description = "echo back", input_schema = {} }]
+tool_calls = [
+  { name = "echo", result = "the quick brown fox jumps over the lazy dog the quick brown fox jumps over the lazy dog" },
+]
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "call", op = "chat_stream" },
+  { kind = "call", op = "call_tool" },
+  { kind = "inbound", event = "tool-result" },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "tool", content = "<truncated>" },
+    { role = "user", content = "^⟦runtime⟧\\n\\nThis message was truncated" },
+  ] } },
+]

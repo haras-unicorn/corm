@@ -1,3 +1,5 @@
+# When a tool returns `structured_content`, its text is what reaches the model
+# (raw content is absent here), so the re-prompt carries `structured!`.
 [endpoint]
 requests = [
   { model = "corm", session_id = "corm", messages = [
@@ -12,7 +14,7 @@ turns = [
 ]
 
 [memory.corm]
-"corm-state" = "{}"
+corm_state = {}
 
 [tooling.filesystem]
 tools = [{ name = "add", description = "add", input_schema = {} }]

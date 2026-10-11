@@ -1,0 +1,41 @@
+# A window persisted with the task stack is restored on startup, and the rolling
+# summary is injected as a `⟦runtime⟧` message before the restored messages.
+#
+# Crucial: the seeded `old` message is already in the window, so `ingest` must
+# not add it again; the first provider call is exactly
+# [system runtime prompt][system prompt][user ⟦runtime⟧ summary][old][new]. This
+# proves reload/shutdown keeps context and that summary injection does not
+# duplicate the prompt.
+[endpoint]
+requests = [
+  { model = "corm", session_id = "corm", messages = [
+    { content = "old" },
+    { content = "new" },
+  ] },
+]
+
+[providers.gpu]
+turns = [{ content = "ok" }]
+
+[memory.corm]
+corm_config = { prompt = "be terse" }
+
+[memory.corm.corm_state]
+pending = []
+immediate = []
+
+[memory.corm.corm_state.window]
+summary = "old summary"
+messages = [{ role = "user", content = "⟦client⟧\n\nold" }]
+epoch = 0
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "system", content = "The following is your root persona\\.\\n\\nbe terse$" },
+    { role = "user", content = "^⟦runtime⟧\\n\\n\\n\\n\\nThe following is a compacted summary of your previous context window\\.\\n\\nold summary$" },
+    { role = "user", content = "^⟦client⟧\\n\\nold$" },
+    { role = "user", content = "^⟦client⟧\\n\\nnew$" },
+  ] } },
+]

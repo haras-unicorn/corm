@@ -71,3 +71,18 @@ export const toolResultText = (result: ToolResult | undefined): string => {
 
   return JSON.stringify(result.content ?? result.structuredContent ?? "");
 };
+
+// omw re-sends the reassembled tool-call arguments on every delta, so the common
+// case is cumulative (`next` extends `previous`); a provider may instead stream
+// non-overlapping fragments. Replace on the overlapping case and concatenate
+// otherwise, mirroring the endpoint's reassembly.
+export const mergeToolArguments = (
+  previous: unknown,
+  next: unknown,
+): unknown => {
+  if (typeof previous === "string" && typeof next === "string") {
+    return next.startsWith(previous) ? next : previous + next;
+  }
+
+  return next;
+};

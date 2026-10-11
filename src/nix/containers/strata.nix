@@ -48,6 +48,8 @@
             package = pkgs.cormPackages.${package};
           };
         };
+
+        corm.settings.contextLength = ctx;
       };
   };
 }

@@ -12,6 +12,7 @@
   "memory": {
     "corm": {
       "corm_config": {
+        "contextLength": 131072,
         "model": "model"
       }
     }

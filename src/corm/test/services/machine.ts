@@ -184,6 +184,69 @@ test("routes events to the accepting task rather than the top of the stack", () 
   expect(registrar.created[1].handled).toEqual([]);
 });
 
+test("queues a same-session message when the active handler rejects it", () => {
+  const registrar = makeRegistrar(chatSpec);
+  registrar.acceptQueue.push(() => false);
+  registrar.outcomeQueue.push(() => "running");
+  const { machine, state } = makeMachine(registrar);
+
+  machine.handle(endpointMessage("s1"));
+  machine.handle(endpointMessage("s1"));
+
+  expect(registrar.created).toHaveLength(2);
+  expect(state.immediate).toHaveLength(1);
+  expect(state.pending).toHaveLength(1);
+  expect(registrar.created[0].handled).toEqual([]);
+  expect(registrar.created[1].handled).toEqual([]);
+});
+
+test("coalesces repeated deferred messages for the same key", () => {
+  const registrar = makeRegistrar(chatSpec);
+  registrar.acceptQueue.push(() => false);
+  registrar.outcomeQueue.push(() => "running");
+  const { machine, state } = makeMachine(registrar);
+
+  machine.handle(endpointMessage("s1"));
+  machine.handle(endpointMessage("s2"));
+  const third = endpointMessage("s2");
+  machine.handle(third);
+
+  expect(registrar.created).toHaveLength(3);
+  expect(registrar.created[2].task.id).toBe(registrar.created[1].task.id);
+  expect(state.immediate).toHaveLength(1);
+  expect(state.pending).toHaveLength(1);
+  expect(state.pending[0].state).toBe(third);
+});
+
+test("drains pending tasks one at a time", () => {
+  const registrar = makeRegistrar(chatSpec);
+  for (let index = 0; index < 3; index++) {
+    registrar.acceptQueue.push(() => true);
+    registrar.outcomeQueue.push((event) =>
+      event.kind === "timer" ? "complete" : "running",
+    );
+  }
+
+  const { machine, state } = makeMachine(registrar);
+
+  machine.handle(endpointMessage("s1"));
+  machine.handle(endpointMessage("s2"));
+  machine.handle(endpointMessage("s3"));
+  expect(state.immediate).toHaveLength(1);
+  expect(state.pending).toHaveLength(2);
+
+  machine.handle({ id: "wake", kind: "timer", payload: null });
+  expect(state.immediate).toHaveLength(1);
+  expect(state.pending).toHaveLength(1);
+  expect(registrar.created[1].handled).toEqual([endpointMessage("s2")]);
+  expect(registrar.created[2].handled).toEqual([]);
+
+  machine.handle({ id: "wake", kind: "timer", payload: null });
+  expect(state.immediate).toHaveLength(1);
+  expect(state.pending).toHaveLength(0);
+  expect(registrar.created[2].handled).toEqual([endpointMessage("s3")]);
+});
+
 test("cancels the active generation on shutdown", () => {
   const registrar = makeRegistrar(chatSpec);
   const { machine, provider, handles } = makeMachine(registrar);

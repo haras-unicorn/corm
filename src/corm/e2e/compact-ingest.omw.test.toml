@@ -1,0 +1,54 @@
+# Ingesting a burst of messages can cross the soft threshold; the handler
+# compacts before starting that request's turn.
+#
+# Setup: a seeded 8-message window plus three large re-offered messages trips the
+# 0.7 threshold on ingest.
+#
+# Crucial: the summary chat_stream runs before the request's own chat_stream, so
+# a turn never starts over budget.
+[endpoint]
+requests = [
+  { model = "corm", session_id = "corm", messages = [
+    { content = "new" },
+  ] },
+  { model = "corm", session_id = "corm2", messages = [
+    { content = "new" },
+    { content = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" },
+    { content = "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy" },
+    { content = "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz" },
+  ] },
+]
+
+[providers.gpu]
+turns = [{ content = "one" }, { content = "compressed" }, { content = "two" }]
+
+[memory.corm]
+corm_config = { contextLength = 100, protectRatio = 0.5, protectMessages = 32, compactThreshold = 0.7, hardThreshold = 0.9, messageTokenLimit = 40, compactSummaryLimit = 20 }
+[memory.corm.corm_state]
+pending = []
+immediate = []
+
+[memory.corm.corm_state.window]
+messages = [
+  { role = "user", content = "p1" },
+  { role = "user", content = "p2" },
+  { role = "user", content = "p3" },
+  { role = "user", content = "p4" },
+  { role = "user", content = "p5" },
+  { role = "user", content = "p6" },
+  { role = "user", content = "p7" },
+  { role = "user", content = "p8" },
+]
+epoch = 0
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "call", op = "chat_stream" },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\nYour available context window is running low" },
+  ] } },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\n\\n\\n\\nThe following is a compacted summary of your previous context window\\.\\n\\ncompressed$" },
+  ] } },
+]

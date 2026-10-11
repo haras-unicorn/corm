@@ -3,6 +3,7 @@ import {
   cormStateZod,
   cormSubscriptionsZod,
   cormTaskSpecZod,
+  cormWindowZod,
 } from "corm/lib/opaque";
 import { expect, test } from "vitest";
 
@@ -10,14 +11,44 @@ test("state defaults to empty queues", () => {
   expect(cormStateZod.parse({})).toEqual({ pending: [], immediate: [] });
 });
 
-test("config requires a model", () => {
-  expect(cormConfigZod.parse({ model: "qwen" })).toEqual({ model: "qwen" });
+test("state keeps an opaque window", () => {
+  expect(cormStateZod.parse({ window: { a: 1 } })).toEqual({
+    pending: [],
+    immediate: [],
+    window: { a: 1 },
+  });
+});
+
+test("window state parses with defaults", () => {
+  expect(cormWindowZod.parse({})).toEqual({
+    messages: [],
+    sources: {},
+    digests: {},
+    receipts: [],
+    epoch: 0,
+  });
+});
+
+test("config requires a model and a context length", () => {
+  expect(cormConfigZod.parse({ model: "qwen", contextLength: 32768 })).toEqual({
+    model: "qwen",
+    contextLength: 32768,
+  });
   expect(() => cormConfigZod.parse({})).toThrow();
+  expect(() => cormConfigZod.parse({ model: "qwen" })).toThrow();
+  expect(() => cormConfigZod.parse({ contextLength: 32768 })).toThrow();
 });
 
 test("config accepts an optional tools subset", () => {
-  expect(cormConfigZod.parse({ model: "qwen", tools: ["read_file"] })).toEqual({
+  expect(
+    cormConfigZod.parse({
+      model: "qwen",
+      contextLength: 32768,
+      tools: ["read_file"],
+    }),
+  ).toEqual({
     model: "qwen",
+    contextLength: 32768,
     tools: ["read_file"],
   });
 });

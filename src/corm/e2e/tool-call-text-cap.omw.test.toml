@@ -1,0 +1,37 @@
+# The text tool-call retry is bounded by `toolCallRetryLimit`; once exhausted the
+# turn finishes instead of looping forever.
+#
+# Crucial: with the limit at 1, the second text call is not retried and the turn
+# ends with a `stop` finish reason.
+[endpoint]
+requests = [
+  { model = "corm", session_id = "corm", messages = [
+    { content = "go" },
+  ] },
+]
+
+[providers.gpu]
+turns = [
+  { content = 'see <tool_call>{"name":"echo"}</tool_call>' },
+  { content = 'again <tool_call>{"name":"echo"}</tool_call>' },
+  { content = "done" },
+]
+
+[memory.corm]
+corm_config = { toolCallRetryLimit = 1 }
+corm_state = {}
+
+[tooling.filesystem]
+tools = [{ name = "echo", description = "echo back", input_schema = {} }]
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "call", op = "chat_stream" },
+  { kind = "inbound", event = "chat-end" },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\nYour previous response wrote a tool call as text" },
+  ] } },
+  { kind = "inbound", event = "chat-end" },
+  { kind = "call", op = "stream_endpoint", detail = { finish_reason = "^stop$" } },
+]

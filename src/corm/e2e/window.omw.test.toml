@@ -1,0 +1,54 @@
+# The window is global and append-only: every request grows the same prefix
+# instead of trimming its own history, which is what keeps the KV cache warm
+# between turns and compactions.
+#
+# Crucial: the second request re-offers `first` (already seen) plus `second`, and
+# the provider must receive *both* -- a per-task trim would send only `second`
+# and lose the cached prefix. The assistant replies (`one`, `two`) are stored by
+# the brain at turn end, so the provider sees that it already answered `first`
+# instead of re-answering it in a later (possibly another) session. The third
+# request is a different source whose disjoint history is served as the union,
+# proving the window is shared across sessions. The runtime prompt and the
+# operator prompt are injected at call time and appear once, and each inbound
+# user message is framed `⟦client⟧`.
+[endpoint]
+requests = [
+  { model = "corm", session_id = "corm", messages = [
+    { content = "first" },
+  ] },
+  { model = "corm", session_id = "corm", messages = [
+    { content = "first" },
+    { content = "second" },
+  ] },
+  { model = "corm", session_id = "other", messages = [
+    { content = "third" },
+  ] },
+]
+
+[providers.gpu]
+turns = [{ content = "one" }, { content = "two" }, { content = "three" }]
+
+[memory.corm]
+corm_config = { prompt = "be terse" }
+corm_state = {}
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "system", content = "The following is your root persona\\.\\n\\nbe terse$" },
+    { role = "user", content = "^⟦client⟧\\n\\nfirst$" },
+  ] } },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦client⟧\\n\\nfirst$" },
+    { role = "assistant", content = "^one$" },
+    { role = "user", content = "^⟦client⟧\\n\\nsecond$" },
+  ] } },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦client⟧\\n\\nfirst$" },
+    { role = "assistant", content = "^one$" },
+    { role = "user", content = "^⟦client⟧\\n\\nsecond$" },
+    { role = "assistant", content = "^two$" },
+    { role = "user", content = "^⟦client⟧\\n\\nthird$" },
+  ] } },
+]

@@ -283,6 +283,10 @@
 
           cormStateDir = "/tmp/${cormName}-scaffold";
 
+          cormConfig = {
+            contextLength = 131072;
+          };
+
           cormCpuHost = "127.0.0.1";
           cormCpuPort = selfLib.ports.cpu-provider;
           cormCpuModel = "model";

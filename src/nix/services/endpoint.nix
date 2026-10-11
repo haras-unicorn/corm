@@ -30,8 +30,26 @@
 
       aichat-corm = pkgs.writeShellApplication {
         name = "aichat-corm";
-        runtimeInputs = [ pkgs.aichat ];
-        text = "AICHAT_CONFIG_FILE=${aichat-corm-config} exec aichat \"$@\"";
+        runtimeInputs = [
+          pkgs.aichat
+          pkgs.coreutils
+          pkgs.yq
+        ];
+        text = ''
+          export AICHAT_CONFIG_FILE=${aichat-corm-config}
+
+          sessions_dir="''${AICHAT_SESSIONS_DIR:-''${XDG_CONFIG_HOME:-$HOME/.config}/aichat/sessions}"
+          session_file="$sessions_dir/corm.yaml"
+          if [ -f "$session_file" ]; then
+            yq -i '.messages = ((.messages // []) | .[-${toString config.corm.endpoint.client.sessionMessages}:])' "$session_file" || true
+          fi
+
+          if [ "$#" -eq 0 ]; then
+            aichat -s corm --info | tail -n ${toString config.corm.endpoint.client.infoLines} || true
+          fi
+
+          exec aichat "$@"
+        '';
       };
     in
     {
@@ -63,6 +81,18 @@
             default = config.corm.endpoint.enable;
             defaultText = lib.literalExpression "config.corm.endpoint.enable";
             description = "Install the aichat client, pointed at the Corm endpoint.";
+          };
+
+          sessionMessages = lib.mkOption {
+            type = lib.types.ints.positive;
+            default = 128;
+            description = "How many recent messages to keep in the aichat session file before the client starts.";
+          };
+
+          infoLines = lib.mkOption {
+            type = lib.types.ints.positive;
+            default = 10000;
+            description = "How many trailing lines of the session dump to print to the terminal when the client starts.";
           };
         };
       };
