@@ -1,0 +1,48 @@
+# The hard threshold fires mid-stream: the generation is cancelled, the
+# `compactNotice` is streamed to the client as ordinary content, compaction runs
+# and the same turn resumes.
+#
+# Crucial: the client sees the streamed notice (`context limit reached`) before
+# the summary turn and the resumed turn; this is the only path that interrupts a
+# live generation, and it must leave the window consistent.
+[endpoint]
+requests = [
+  { model = "corm", session_id = "corm", messages = [
+    { content = "new" },
+  ] },
+]
+
+[providers.gpu]
+turns = [
+  { content = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" },
+  { content = "compressed" },
+  { content = "resumed" },
+]
+
+[memory.corm]
+corm_config = { contextLength = 100, protectRatio = 0.5, protectMessages = 32, compactThreshold = 0.7, hardThreshold = 0.9, messageTokenLimit = 20, compactSummaryLimit = 20 }
+[memory.corm.corm_state]
+inbox = []
+
+[memory.corm.corm_state.window]
+active = [
+  { message = { role = "user", content = "p1" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "p2" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "p3" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "p4" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "p5" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "p6" }, role = "user", tag = "client" },
+]
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "call", op = "chat_stream" },
+  { kind = "call", op = "stream_endpoint", detail = { content = "context limit reached" } },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\nYour available context window is running low" },
+  ] } },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\n\\n\\n\\nThe following is a compacted summary of your previous context window\\.\\n\\ncompressed$" },
+  ] } },
+]

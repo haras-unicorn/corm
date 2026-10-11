@@ -1,0 +1,79 @@
+# A source whose recent messages compaction evicted gets a recap before its new
+# turn: a notice, a bounded replay, and an end-of-replay marker that delimits the
+# replay from the new message.
+#
+# Crucial: interleaving alone never recaps -- only compacted content does. The
+# seeded window is compacted on the first turn, so the second turn's re-offer of
+# an evicted message builds the recap block; in this deliberately tiny context the
+# block lands in the protected tail, so the recap notice and its end-of-replay
+# marker both reach the turn ahead of `more`, and the model never mistakes the
+# replay for a fresh instruction.
+[endpoint]
+requests = [
+  { model = "corm", session_id = "seed", messages = [
+    { content = "new" },
+  ] },
+  { model = "corm", session_id = "corm2", messages = [
+    { content = "p1" },
+    { content = "p2" },
+    { content = "p3" },
+    { content = "p4" },
+    { content = "p5" },
+    { content = "p6" },
+    { content = "p7" },
+    { content = "p8" },
+    { content = "p9" },
+    { content = "p10" },
+    { content = "p11" },
+    { content = "p12" },
+    { content = "new" },
+    { content = "more" },
+  ] },
+]
+
+[providers.gpu]
+turns = [
+  { content = "compressed" },
+  { content = "done" },
+  { content = "next" },
+  { content = "final" },
+]
+
+[memory.corm]
+corm_config = { contextLength = 80, protectRatio = 0.5, protectMessages = 32, compactThreshold = 0.7, hardThreshold = 0.9, messageTokenLimit = 20, compactSummaryLimit = 20, replayMessages = 1, recapNotice = "resume {{ID}}", recapEndNotice = "end of replay" }
+[memory.corm.corm_state]
+inbox = []
+
+[memory.corm.corm_state.window]
+active = [
+  { message = { role = "user", content = "⟦client⟧\n\np1" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np2" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np3" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np4" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np5" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np6" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np7" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np8" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np9" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np10" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np11" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np12" }, role = "user", tag = "client" },
+]
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\nYour available context window is running low" },
+  ] } },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\n\\n\\n\\nThe following is a compacted summary of your previous context window\\.\\n\\ncompressed$" },
+    { role = "user", content = "^⟦client⟧\\n\\nnew$" },
+  ] } },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\nresume 2$" },
+    { role = "user", content = "^⟦client⟧\\n\\np7$" },
+    { role = "user", content = "^⟦runtime⟧\\n\\nend of replay$" },
+    { role = "user", content = "^⟦client⟧\\n\\nmore$" },
+  ] } },
+]

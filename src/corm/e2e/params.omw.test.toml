@@ -1,3 +1,4 @@
+# Request `params` are passed through to the provider call unchanged.
 [endpoint]
 requests = [
   { model = "corm", session_id = "corm", messages = [
@@ -9,7 +10,7 @@ requests = [
 turns = [{ content = "hello" }]
 
 [memory.corm]
-"corm-state" = "{}"
+corm_state = {}
 
 [assertions.corm]
 outcome = "asserted"

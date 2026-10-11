@@ -8,5 +8,8 @@
   "main": "dist/index.js",
   "dependencies": {
     "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "type-fest": "^5.10.0"
   }
 }

@@ -1,3 +1,6 @@
+# The configured `prompt` is injected as the leading system message on every
+# provider call (here both the tool turn and the re-prompt), while the stored
+# window stays prompt-free.
 [endpoint]
 requests = [
   { model = "corm", session_id = "corm", messages = [
@@ -12,8 +15,8 @@ turns = [
 ]
 
 [memory.corm]
-"corm_config" = { model = "model", prompt = "be terse" }
-"corm-state" = "{}"
+corm_config = { model = "model", prompt = "be terse" }
+corm_state = {}
 
 [tooling.filesystem]
 tools = [{ name = "echo", description = "echo back", input_schema = {} }]
@@ -24,11 +27,11 @@ outcome = "asserted"
 events = [
   { kind = "inbound", event = "endpoint-message" },
   { kind = "call", op = "chat_stream", detail = { messages = [
-    { role = "system", content = "^be terse$" },
+    { role = "system", content = "The following is your root persona\\.\\n\\nbe terse$" },
   ] } },
   { kind = "call", op = "call_tool" },
   { kind = "call", op = "chat_stream", detail = { messages = [
-    { role = "system", content = "^be terse$" },
+    { role = "system", content = "The following is your root persona\\.\\n\\nbe terse$" },
   ] } },
   { kind = "inbound", event = "chat-end" },
 ]

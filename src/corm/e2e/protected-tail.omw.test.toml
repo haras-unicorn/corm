@@ -1,0 +1,50 @@
+# Compaction evicts the older messages but always keeps the protected tail.
+#
+# Setup: a 12-message seeded window means the compactor has an evictable set,
+# while the protected tail stays verbatim.
+#
+# Crucial: after the summary turn, the next provider call still ends with the
+# recent `new` message -- continuity of the latest turns is preserved even as the
+# older ones are folded into the summary.
+[endpoint]
+requests = [
+  { model = "corm", session_id = "corm", messages = [
+    { content = "new" },
+  ] },
+]
+
+[providers.gpu]
+turns = [{ content = "compressed" }, { content = "done" }]
+
+[memory.corm]
+corm_config = { contextLength = 80, protectRatio = 0.5, protectMessages = 32, compactThreshold = 0.7, hardThreshold = 0.9, messageTokenLimit = 20, compactSummaryLimit = 20 }
+[memory.corm.corm_state]
+inbox = []
+
+[memory.corm.corm_state.window]
+active = [
+  { message = { role = "user", content = "⟦client⟧\n\np1" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np2" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np3" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np4" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np5" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np6" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np7" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np8" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np9" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np10" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np11" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np12" }, role = "user", tag = "client" },
+]
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\nYour available context window is running low" },
+  ] } },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\n\\n\\n\\nThe following is a compacted summary of your previous context window\\.\\n\\ncompressed$" },
+    { role = "user", content = "^⟦client⟧\\n\\nnew$" },
+  ] } },
+]

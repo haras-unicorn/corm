@@ -1,0 +1,26 @@
+# `endpoint-session-end` during a live turn cancels the generation and lets the
+# handler complete.
+#
+# Crucial: the provider is left pending, so only the session-end can end the
+# turn; the stream is observed as closed with reason `cancelled`.
+[endpoint]
+requests = [
+  { model = "corm", session_id = "corm", messages = [
+    { content = "go" },
+  ], session_end = { close = 0 } },
+]
+
+[providers.gpu]
+turns = [{ pending = true }]
+
+[memory.corm]
+corm_state = {}
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "inbound", event = "endpoint-message" },
+  { kind = "call", op = "chat_stream" },
+  { kind = "inbound", event = "endpoint-session-end" },
+  { kind = "closed", source = "chat-stream", reason = "cancelled" },
+]

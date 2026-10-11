@@ -1,57 +1,73 @@
-import { createCormLogger } from "./lib/log";
-import type { CormOmw } from "./lib/omw";
+import { hasAwaitingTools, isTurnIdling } from "./lib/turn";
+import { reduce } from "./reducers";
 import { createCormConfigManager } from "./services/config";
-import type { CormContext } from "./services/context";
+import { createDispatcher } from "./services/dispatch";
 import { createCormHandlesManager } from "./services/handles";
-import { createCormMachine } from "./services/machine";
-import { createCormHandlerRegistrar } from "./services/registrar";
+import { createCormLogger } from "./services/logger";
 import { createCormStateManager } from "./services/state";
-import { createCormTooling } from "./services/tooling";
+import type { CormOmw, CormOmwEvent } from "./types/omw";
 
 const globalOmw = omw as CormOmw;
 const logger = createCormLogger(globalOmw.host);
 
 logger.info("corm starting");
 
-const handleManager = createCormHandlesManager(globalOmw);
-const configManager = createCormConfigManager(globalOmw);
-const stateManager = createCormStateManager(globalOmw);
+const config = createCormConfigManager(logger, globalOmw).load();
+const handles = createCormHandlesManager(globalOmw, config, logger).load();
+const stateManager = createCormStateManager(logger, handles, config);
+const state = stateManager.load();
 
-const handles = handleManager.load();
-const config = configManager.load();
-const tooling = createCormTooling(handles, config.tools);
+const dispatcher = createDispatcher(logger, handles, config, state);
 
-const context: CormContext = {
-  handles,
-  config,
-  tooling,
-  logger,
+const dispatch = (event: CormOmwEvent): void => {
+  for (const effect of reduce(event, state, config)) {
+    try {
+      dispatcher.dispatch(effect);
+    } catch (error) {
+      const message = (error as Error).message;
+      logger.error(`failed dispatching ${effect.kind}: ${message}`);
+    }
+  }
 };
 
-const registrar = createCormHandlerRegistrar(context);
-const machine = createCormMachine(context, stateManager.load(), registrar);
+// Drain the inbox once the machine is idle: only one generation (and one window
+// writer) may run at a time, so requests that arrived mid-turn are answered in
+// order here.
+const drain = (): void => {
+  while (
+    state.disk.inbox.length > 0 &&
+    isTurnIdling(state) &&
+    !hasAwaitingTools(state)
+  ) {
+    const queued = state.disk.inbox.shift();
+    if (queued === undefined) {
+      break;
+    }
+
+    logger.debug(
+      `draining queued endpoint request ${queued.event.payload.session}`,
+    );
+    dispatch(queued.event);
+  }
+};
 
 logger.info("corm ready");
 
 while (true) {
-  let event: OmwEvent | null = null;
+  let event: CormOmwEvent | null = null;
   try {
-    event = globalOmw.host.recv();
+    event = handles.host().recv();
   } catch (error) {
     const message = (error as Error).message;
-    logger.warn(`failed waiting for events: ${message}`);
+    logger.debug(`failed waiting for events: ${message}`);
+    // NOTE: this is to prevent it from spinning in tests
+    // since asserted tests keep going without emitting a shutdown event
+    // until all tests pass
+    globalOmw.host.sleepFor(100);
     continue;
   }
 
   logger.trace(`recv ${event.kind}`);
-
-  try {
-    machine.handle(event);
-  } catch (error) {
-    const message = (error as Error).message;
-    logger.warn(`failed handling event '${event.kind}': ${message}`);
-    continue;
-  }
 
   if (event.kind === "reload" || event.kind === "shutdown") {
     logger.info(`corm ${event.kind}: releasing managers`);
@@ -63,22 +79,11 @@ while (true) {
       logger.error(`failed releasing state manager: ${message}`);
     }
 
-    try {
-      handleManager.release(event);
-    } catch (error) {
-      const message = (error as Error).message;
-      logger.error(`failed releasing handle manager: ${message}`);
-    }
-
-    try {
-      configManager.release(event);
-    } catch (error) {
-      const message = (error as Error).message;
-      logger.error(`failed releasing config manager: ${message}`);
-    }
-
     break;
   }
+
+  dispatch(event);
+  drain();
 }
 
 logger.info("corm stopped");

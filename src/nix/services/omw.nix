@@ -23,6 +23,7 @@
 
           cormScript = "${cfg.script}";
           cormConfig = config.corm.settings;
+          cormMcpServers = cfg.mcpServers;
           cormMemory = cfg.memory;
           cormTunables = cfg.tunables;
           cormBwrapArgs = cfg.bwrapArgs;
@@ -86,6 +87,20 @@
           default = "${pkgs.cormPackages.corm}/index.js";
           defaultText = "corm-index.js";
           description = "The JavaScript brain script omw runs.";
+        };
+
+        mcpServers = lib.mkOption {
+          type = lib.types.listOf lib.types.str;
+          default = [
+            "nixos"
+            "nix"
+            "git"
+            "github"
+            "rss"
+            "plan"
+            "filesystem"
+          ];
+          description = "The MCP servers (toolings) to expose to the brain.";
         };
 
         memory = lib.mkOption {

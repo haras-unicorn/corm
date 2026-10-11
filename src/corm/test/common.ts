@@ -1,8 +1,17 @@
-import { createCormLogger } from "corm/lib/log";
-import type { CormConfig, CormSubscriptions } from "corm/lib/opaque";
-import type { CormContext } from "corm/services/context";
-import type { CormHandles, CormNamedTooling } from "corm/services/handles";
-import { createCormTooling } from "corm/services/tooling";
+import { systemMessage } from "corm/lib/messages";
+import type { CormHandles } from "corm/services/handles";
+import type { CormConfig } from "corm/types/config";
+import type { CormOmw } from "corm/types/omw";
+import type { CormState } from "corm/types/state";
+import { defaultTurn } from "corm/types/turn";
+
+export const baseConfig = (
+  overrides: Partial<CormConfig> = {},
+): CormConfig => ({
+  model: "model",
+  contextLength: 131072,
+  ...overrides,
+});
 
 export interface FakeHostCounters {
   lifecycle: number;
@@ -13,7 +22,6 @@ export interface FakeHost {
   memory: Map<string, string>;
   streamed: { session: string; delta: ChatDelta }[];
   subscribedEndpoints: string[];
-  unsubscribedEndpoints: string[];
   counters: FakeHostCounters;
 }
 
@@ -21,36 +29,11 @@ export const makeHost = (overrides: Partial<Host> = {}): FakeHost => {
   const memory = new Map<string, string>();
   const streamed: { session: string; delta: ChatDelta }[] = [];
   const subscribedEndpoints: string[] = [];
-  const unsubscribedEndpoints: string[] = [];
   const counters: FakeHostCounters = { lifecycle: 0 };
 
   const host = {
     log: () => {},
     whoami: () => "corm",
-    timeNow: () => 0,
-    timeFormat: () => "",
-    waitUntil: () => "timer",
-    waitFor: () => "wake",
-    waitCron: () => "cron",
-    sleepFor: () => {},
-    sleepUntil: () => {},
-    sleepCron: () => {},
-    cancelTimer: () => {},
-    subscribeAgent: () => "agent-sub",
-    unsubscribeAgent: () => {},
-    subscribeLifecycle: () => {
-      counters.lifecycle += 1;
-      return "lifecycle-sub";
-    },
-    unsubscribeLifecycle: () => {},
-    sendAgent: () => {},
-    recv: () => {
-      throw new Error("recv is not faked");
-    },
-    tryRecv: () => undefined,
-    newUuid: () => "uuid",
-    base64Encode: () => "",
-    base64Decode: () => [],
     memoryGet: (key: string) => memory.get(key),
     memoryGetAs: (key: string) => {
       const value = memory.get(key);
@@ -66,178 +49,195 @@ export const makeHost = (overrides: Partial<Host> = {}): FakeHost => {
     memorySet: (key: string, value: string) => {
       memory.set(key, value);
     },
-    memorySetAs: (key: string, value: unknown) => {
-      memory.set(key, JSON.stringify(value));
-    },
     memoryRemove: (key: string) => memory.delete(key),
+    subscribeLifecycle: () => {
+      counters.lifecycle += 1;
+      return "lifecycle-sub";
+    },
+    unsubscribeLifecycle: () => {},
     subscribeEndpoint: (model: string) => {
       subscribedEndpoints.push(model);
       return `endpoint-sub-${model}`;
     },
-    unsubscribeEndpoint: (uuid: string) => {
-      unsubscribedEndpoints.push(uuid);
-    },
+    unsubscribeEndpoint: () => {},
     streamEndpoint: (session: string, delta: ChatDelta) => {
       streamed.push({ session, delta });
     },
     ...overrides,
   } as unknown as Host;
 
-  return {
-    host,
-    memory,
-    streamed,
-    subscribedEndpoints,
-    unsubscribedEndpoints,
-    counters,
-  };
+  return { host, memory, streamed, subscribedEndpoints, counters };
 };
-
-export interface FakeProvider extends ProviderHandle {
-  calls: { model: string; messages: ChatMessage[]; tools: ChatTool[] }[];
-  cancelled: string[];
-}
 
 export const makeProvider = (
   name: string,
   models: string[] = ["model"],
-): FakeProvider => {
+): ProviderHandle => {
   let counter = 0;
-  const calls: FakeProvider["calls"] = [];
-  const cancelled: string[] = [];
-
   return {
     name,
-    kind: () => "openai",
+    kind: () => "mock",
     listModels: () => models,
     chat: () => {
       throw new Error("blocking chat is banned");
     },
-    chatStream: (model: string, messages: ChatMessage[], tools: ChatTool[]) => {
+    chatStream: () => {
       counter += 1;
-      calls.push({ model, messages, tools });
       return `${name}-gen-${counter}`;
     },
     isOpen: () => true,
-    cancel: (uuid: string) => {
-      cancelled.push(uuid);
-    },
-    calls,
-    cancelled,
-  } as unknown as FakeProvider;
+    cancel: () => {},
+  } as unknown as ProviderHandle;
 };
 
-export interface FakeTooling extends ToolingHandle {
-  invoked: { tool: string; args: unknown }[];
-}
-
-export const makeToolingHandle = (
-  name: string,
-  tools: string[],
-): FakeTooling => {
-  let counter = 0;
-  const invoked: { tool: string; args: unknown }[] = [];
-
-  return {
+export const makeTooling = (name: string, tools: string[]): ToolingHandle =>
+  ({
     name,
-    kind: () => "mcp",
+    kind: () => "mock",
     listTools: () =>
-      tools.map((tool) => ({
-        name: tool,
-        description: `${tool} tool`,
-        inputSchema: {},
-      })),
-    callTool: (tool: string, args: unknown) => {
-      invoked.push({ tool, args });
-      counter += 1;
-      return `${name}-call-${counter}`;
-    },
+      tools.map((tool) => ({ name: tool, description: `${tool} tool` })),
+    callTool: () => "call-uuid",
     isOpen: () => true,
     cancel: () => {},
-    callToolBlocking: () => {
-      throw new Error("blocking tool calls are banned");
-    },
-    listResources: () => [],
-    readResource: () => {
-      throw new Error("no resources");
-    },
-    subscribeResourceList: () => "",
-    unsubscribeResourceList: () => {},
-    subscribeResource: () => "",
-    unsubscribeResource: () => {},
-    invoked,
-  } as unknown as FakeTooling;
-};
+  }) as unknown as ToolingHandle;
 
-export const makeNamedToolings = (
-  toolings: ToolingHandle[],
-): CormNamedTooling[] =>
-  toolings.map((handle) => ({
-    name: handle.name,
-    handle: handle as unknown as CormNamedTooling["handle"],
-  }));
-
-export const makeHandles = (options: {
-  host: Host;
-  providers?: ProviderHandle[];
-  toolings?: CormNamedTooling[];
-  subscriptions?: CormSubscriptions;
-}): CormHandles => {
-  const providers = options.providers ?? [];
-  const subscriptions = options.subscriptions ?? {
-    lifecycle: "lifecycle-sub",
-    endpoint: "endpoint-sub",
-    model: "corm",
-  };
-
+export const makeOmw = (options: {
+  providers?: Record<string, ProviderHandle>;
+  toolings?: Record<string, ToolingHandle>;
+  host?: Host;
+}): CormOmw => {
+  const host = options.host ?? makeHost().host;
   return {
-    host: () => options.host,
-    providers: () => providers,
-    main: () => providers[0],
-    toolings: () => options.toolings ?? [],
-    subscriptions: () => subscriptions,
-  } as unknown as CormHandles;
+    provider: {
+      get: (name: string) => {
+        const provider = options.providers?.[name];
+        if (provider === undefined) {
+          throw new Error(`no such provider ${JSON.stringify(name)}`);
+        }
+        return provider;
+      },
+    },
+    tooling: {
+      get: (name: string) => {
+        const tooling = options.toolings?.[name];
+        if (tooling === undefined) {
+          throw new Error(`no such tooling ${JSON.stringify(name)}`);
+        }
+        return tooling;
+      },
+    },
+    host,
+  } as unknown as CormOmw;
 };
 
-export const makeContext = (
-  handles: CormHandles,
-  config: CormConfig = { model: "model" },
-): CormContext => ({
-  handles,
-  config,
-  tooling: createCormTooling(handles, config.tools),
-  logger: createCormLogger(handles.host()),
+export interface FakeHandles {
+  handles: CormHandles;
+  chat: {
+    model: string;
+    messages: ChatMessage[];
+    tools: ChatTool[];
+    params: unknown;
+  }[];
+  calls: { name: string; args: unknown }[];
+  cancels: string[];
+}
+
+export const makeHandles = (
+  host: Host,
+  tools: ChatTool[] = [],
+): FakeHandles => {
+  const chat: FakeHandles["chat"] = [];
+  const calls: FakeHandles["calls"] = [];
+  const cancels: string[] = [];
+  let counter = 0;
+
+  const handles = {
+    host: () => host,
+    chat: (
+      model: string,
+      messages: ChatMessage[],
+      chatTools: ChatTool[],
+      params?: unknown,
+    ) => {
+      chat.push({ model, messages, tools: chatTools, params });
+      counter += 1;
+      return `gen-${counter}`;
+    },
+    call: (name: string, args: unknown) => {
+      calls.push({ name, args });
+      return "call-uuid";
+    },
+    cancel: (id: string) => {
+      cancels.push(id);
+    },
+    tools: () => tools,
+    provider: () => undefined,
+    tooling: () => {
+      throw new Error("no tooling");
+    },
+  } as unknown as CormHandles;
+
+  return { handles, chat, calls, cancels };
+};
+
+export const makeState = (config: CormConfig = baseConfig()): CormState => ({
+  memory: {
+    subscriptions: {
+      lifecycle: "lifecycle-sub",
+      endpoint: "endpoint-sub",
+      generation: undefined,
+    },
+  },
+  disk: {
+    inbox: [],
+    window: {
+      system: systemMessage("system", config),
+      summary: "",
+      active: [],
+      tools: [],
+      clientTools: [],
+      session: "",
+      params: undefined,
+      tokens: 0,
+      chars: 0,
+    },
+    turn: defaultTurn(),
+    receipts: [],
+    task: 0,
+  },
 });
 
 export const endpointMessage = (
   session = "s1",
   messages: ChatMessage[] = [{ role: "user", content: "hi" }],
+  params?: unknown,
 ): OmwEvent & { kind: "endpoint-message" } => ({
   id: `event-${session}`,
   kind: "endpoint-message",
-  payload: { session, messages, tools: [] },
+  payload: { session, messages, tools: [], params },
 });
 
-export const chatDelta = (gen: string, payload: ChatDelta): OmwEvent => ({
-  id: gen,
+export const chatDelta = (id: string, payload: ChatDelta): OmwEvent => ({
+  id,
   kind: "chat-delta",
   payload,
 });
 
-export const chatEnd = (gen: string): OmwEvent => ({
-  id: gen,
+export const chatEnd = (id: string): OmwEvent => ({
+  id,
   kind: "chat-end",
   payload: null,
 });
 
-export const timerEvent = (id = "wake"): OmwEvent => ({
-  id,
-  kind: "timer",
-  payload: null,
-});
-
-export const toolResult = (id: string, result: ToolResult): OmwEvent => ({
+export const toolResultEvent = (
+  id: string,
+  text = "hi",
+): OmwEvent & { kind: "tool-result" } => ({
   id,
   kind: "tool-result",
-  payload: result,
+  payload: {
+    name: "echo",
+    arguments: {},
+    content: [{ type: "text", text }],
+  },
 });

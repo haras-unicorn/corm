@@ -92,8 +92,7 @@
                     bench-prompt = builtins.readFile trimmed;
                     bench-tokens = builtins.readFile tokens;
                   };
-                  # NOTE: providers can take their sweet time on prefill
-                  omw.tunables.recv_timeout_secs = 3600;
+
                   omw.script = pkgs.writeText "corm-bench.js" ''
                     // seed ${builtins.toString seed}
                     ${builtins.readFile ./bench.js}

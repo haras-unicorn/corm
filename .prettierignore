@@ -1,5 +1,3 @@
 flake.lock
 pnpm-lock.yaml
 **/CHANGELOG.md
-src/corm/omw.d.ts
-src/corm/e2e/omw.test.base.json

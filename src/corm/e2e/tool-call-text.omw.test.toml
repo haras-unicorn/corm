@@ -1,0 +1,34 @@
+# A tool call emitted as text is detected via `toolCallPattern`, and the model is
+# re-prompted with `toolCallHint` instead of the call being silently dropped.
+#
+# Crucial: the content matches the pattern but produces no structured tool call,
+# so nothing is executed (no `call_tool`); the hint is appended and the turn
+# retries. Without this the call would be lost.
+[endpoint]
+requests = [
+  { model = "corm", session_id = "corm", messages = [
+    { content = "go" },
+  ] },
+]
+
+[providers.gpu]
+turns = [
+  { content = 'see <tool_call>{"name":"echo"}</tool_call>' },
+  { content = "done" },
+]
+
+[memory.corm]
+corm_state = {}
+
+[tooling.filesystem]
+tools = [{ name = "echo", description = "echo back", input_schema = {} }]
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "call", op = "chat_stream" },
+  { kind = "inbound", event = "chat-end" },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\nYour previous response wrote a tool call as text" },
+  ] } },
+]

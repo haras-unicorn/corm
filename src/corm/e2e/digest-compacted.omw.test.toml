@@ -1,0 +1,76 @@
+# Content addressing makes the window robust to a client that re-offers messages
+# it already sent, including ones compaction has since evicted.
+#
+# Crucial: after the seeded window is compacted, `corm2` re-offers `p1`..`p12`
+# (now compacted) plus `new`/`more`; the evicted messages are recognized via the
+# receipts and are not re-added, and the source still gets a recap.
+[endpoint]
+requests = [
+  { model = "corm", session_id = "corm", messages = [
+    { content = "new" },
+  ] },
+  { model = "corm", session_id = "corm2", messages = [
+    { content = "p1" },
+    { content = "p2" },
+    { content = "p3" },
+    { content = "p4" },
+    { content = "p5" },
+    { content = "p6" },
+    { content = "p7" },
+    { content = "p8" },
+    { content = "p9" },
+    { content = "p10" },
+    { content = "p11" },
+    { content = "p12" },
+    { content = "new" },
+    { content = "more" },
+  ] },
+]
+
+[providers.gpu]
+turns = [
+  { content = "compressed" },
+  { content = "done" },
+  { content = "next" },
+  { content = "final" },
+]
+
+[memory.corm]
+corm_config = { contextLength = 80, protectRatio = 0.5, protectMessages = 32, compactThreshold = 0.7, hardThreshold = 0.9, messageTokenLimit = 20, compactSummaryLimit = 20 }
+[memory.corm.corm_state]
+inbox = []
+
+[memory.corm.corm_state.window]
+active = [
+  { message = { role = "user", content = "⟦client⟧\n\np1" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np2" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np3" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np4" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np5" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np6" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np7" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np8" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np9" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np10" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np11" }, role = "user", tag = "client" },
+  { message = { role = "user", content = "⟦client⟧\n\np12" }, role = "user", tag = "client" },
+]
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\nYour available context window is running low" },
+  ] } },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\n\\n\\n\\nThe following is a compacted summary of your previous context window\\.\\n\\ncompressed$" },
+    { role = "user", content = "^⟦client⟧\\n\\nnew$" },
+  ] } },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\nYour available context window is running low" },
+  ] } },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\nEnd of replay" },
+    { role = "user", content = "^⟦client⟧\\n\\nmore$" },
+  ] } },
+]

@@ -9,61 +9,93 @@ config. Changes land through PRs to this repo, get reviewed and merged, and are
 then pulled into that config — so this repo is the one controlled path from "the
 agent wants to change itself" to "the change exists in the real world."
 
+## The one invariant
+
+**MUST: Corm keeps a 100% provider KV-cache hit rate.** Corm targets constrained
+single-GPU, single-agent setups, and it reaches that by context stacking and
+compaction: the shared context window only ever grows, and every non-append call
+(compaction) appends its instruction at the end so the provider reuses the
+cached prefix instead of rewriting it. No change to the brain may slide,
+reorder, or rewrite the prefix. This invariant overrides convenience; treat any
+design that breaks it as wrong.
+
 ## Structure
 
 - `src/corm` is the TypeScript package; the pnpm workspace root is the repo
   root.
-- `src/corm/src/index.ts` is the entry: it builds the handle/state/config
-  managers and the shared context (wiring the configured `tools` subset into the
-  tooling layer), creates the handler registrar and the machine, then drives the
-  event loop over `omw.host.recv()`. On `reload` or `shutdown` it releases every
-  manager and exits.
-- `src/corm/src/services` holds the machine-level services:
-  - `handles.ts` — the loaded providers (`gpu`, `remote`, `cpu`, in that
-    fallback order), toolings (`nixos`, `nix`, `git`, `github`, `rss`, `plan`,
-    `filesystem`), and the endpoint/lifecycle subscriptions (persisted in memory
-    under `corm-subscriptions` and reused when the model still matches).
-  - `config.ts` — the zod-validated `CormConfig` (`{ model, prompt?, tools? }`),
-    loaded lazily from memory: it seeds from the nested `corm_config` object
-    (seeded per-agent by `omw-config.nix`) then overlays one flat
-    `corm_config_<field>` key per `cormConfigZod.shape` field, which is how the
-    `OMW__` environment layering reaches the brain. `tools` is the
-    `<tooling>__<tool>` subset the tooling layer exposes.
-  - `tooling.ts` — the machine-level tooling layer: enumerates every tooling's
-    `listTools()`, filters them against the configured `CormConfig.tools` subset
-    and the internal always-disabled list (`lib/disabled-tools.json`) — both
-    matched as `<tooling>__<tool>` — exposes the survivors as
-    `corm__<tooling>__<tool>`, resolves ownership, and runs the async `callTool`
-    / `tool-result` / `error` lifecycle. An absent subset exposes everything, an
-    empty one exposes nothing; a configured name that matches no tooling logs a
-    warning. This is the seam for future high-entropy token redaction (not
-    implemented).
-  - `state.ts` — the task-state manager. Its startup filesystem read and
-    shutdown filesystem write via `callToolBlocking` are the single sanctioned
-    blocking calls in corm (see below).
-  - `machine.ts` — the task stack and pending queue. It handles lifecycle events
-    at the machine level, routes stream events by owning generation/UUID, and
-    applies the scheduling policy: a same-session `endpoint-message` merges into
-    the active chat task, a different session while an atomic task is active is
-    queued `pending`, otherwise it is `immediate`.
-  - `registrar.ts` / `registry.ts` — the handler factory registry.
-  - `context.ts`, `opaque.ts`, `keys.ts` — the shared `CormContext`, the zod
-    schemas for opaque stored data (subscriptions, task state/specs, config),
-    and the memory/state keys.
-- `src/corm/src/lib` holds shared helpers: `omw.ts` binds the generated test
-  config into the `CormOmw` alias (and the provider/tooling name unions) so no
-  source uses the unconstrained global `Omw`, `tools.ts` extracts text from
-  `ToolResult` content, and `disabled-tools.json` is the always-disabled tool
-  list shared with the Nix tooling list.
-- `src/corm/src/handlers/chat.ts` is the one handler: the async MCP tool loop.
-  It selects a provider with fallback (gpu → remote → cpu), reads the model from
-  the config service (falling back to `provider.listModels()[0]`), trims the
-  stored `_messages` to the last 32 before each turn, injects the configured
-  `prompt` as the leading system message on every `_beginTurn` (the stored
-  `_messages` stays prompt-free, so it survives a merge and is never
-  duplicated), streams text/reasoning/usage/tool-call deltas to the endpoint,
-  executes `corm__*` calls via the tooling layer and re-prompts, and forwards
-  unknown/client tool calls to the endpoint without executing them.
+- `src/corm/src/index.ts` is the entry: it builds the config, handles and state
+  managers (in that order — handles depend on the loaded config), constructs the
+  dispatcher, then drives the event loop over `omw.host.recv()`. Each event is
+  passed to the pure `reduce(event, state, config)` and every returned effect to
+  `dispatcher.dispatch(effect)`; after each event `drain()` pops and dispatches
+  queued inbox requests while the turn is idle and no tool call is outstanding.
+  On `reload` or `shutdown` it releases the state manager (persisting disk to
+  memory or filesystem) and exits.
+- `src/corm/src/types` is the data model and its zod schemas: `state.ts`
+  (`CormState = { memory, disk }`, with the compiled `cormMemoryStateZod` /
+  `cormDiskStateZod`), `window.ts` (`CormWindow`), `turn.ts` (`CormTurn`,
+  `defaultTurn`), `message.ts` (the `CormMessage` family), `config.ts`
+  (`CormConfig`), `subscriptions.ts`, `inbox.ts`, `action.ts`
+  (`CormAction = CormOmwEvent`), `reducer.ts` (`CormReducer`), `omw.ts` (the
+  generated-config-bound omw aliases and the provider/tooling name unions) and
+  `fns.ts` (`matchTaggedUnionExhaustively`).
+- `src/corm/src/effects` is the effect vocabulary. `index.ts` defines
+  `CormEffect`, the per-kind rule map, and
+  `approveEffects(state, action, ...effects)`: it type-checks a sequence by
+  threading each rule's `next` state through the chain (so an illegal pairing
+  fails to compile) and returns it as `CormApprovedEffect`. `generation.ts`
+  (start-chat-generation, start-compaction-generation, commit-compaction,
+  cancel-generation, clear-generation, invoke-corm-tool,
+  forward-client-tool-call, retry-text-tool-call, circuit-break, plus the
+  `isGenerationFree` / `Active` / `Compacting` predicates), `window.ts`
+  (set-active-request, append-inbound-messages, enqueue-inbound,
+  append-runtime-message, append-recap, append-tool-result), `stream.ts`
+  (fold-chat-delta, stream-endpoint-delta) and `noop.ts` (the deliberate-drop
+  marker).
+- `src/corm/src/reducers` holds the pure decisions, one per event family, each
+  `(action, state, config) => CormApprovedEffect[]`. `index.ts` routes by event
+  kind (`error` goes to `toolReducer` when the id owns an awaited call, else
+  `chatReducer`); `endpoint.ts` owns `endpoint-message` / `endpoint-session-end`
+  (queue-while-busy, recap, ingest, and start chat or compact); `chat.ts` owns
+  `chat-delta` / `chat-end` / `error` / `timer` (the turn protocol: delta
+  folding, mid-stream hard-threshold compaction, text-tool-call retry,
+  client-tool forwarding, soft-threshold compaction on completion); `tool.ts`
+  owns `tool-result` / `error` (a failed tool becomes a `tool` message, and the
+  circuit breaker trips on repeats); `dropped.ts` is the shared "meaningless
+  here" reducer returning a single `noop`.
+- `src/corm/src/services` is the impure, class-based layer (classes live only
+  here): `handles.ts` (the loaded providers and toolings: it probes only the
+  `config.providers` / `config.toolings` names plus the always-present
+  `internal-` toolings (`cormInternalToolingNames`), tolerating a lookup miss so
+  a deployment that enables a subset never crashes on the rest — `provider` /
+  `tooling` return `undefined` for an absent name — with a `gpu → cpu → remote`
+  chat fallback for providers; the `nixos` / `nix` / `git` / `github` / `rss` /
+  `plan` / `filesystem` toolings are exposed to the model as
+  `corm__<tooling>__<tool>`, while `internal-` toolings are probed but their
+  tools are kept out of that list), `config.ts` (the lazy `CormConfig`: it seeds
+  from the `corm_config` object, overlays each flat `corm_config_<field>` key —
+  JSON-parsed when it parses — then `.parse()` + `validateConfig`, so a bad
+  config is a hard startup fail; it reads memory through `omw.host` directly, so
+  it does not depend on the handles), `state.ts` (memory subscriptions plus disk
+  task-state load and persist, seeding `window.tools` from the handles' tools
+  filtered by `config.tools` and the disabled list; it uses the private
+  `internal-filesystem` tooling for the sanctioned blocking state read/write and
+  skips it when that tooling is absent), `logger.ts` (`CormLogger` over
+  `host.log`) and `dispatch.ts` (the single impure dispatcher, one method per
+  effect kind, performing the host call and mutating `CormState`).
+- `src/corm/src/lib` holds the pure helpers: `window.ts` (framing-aware ingest,
+  truncation, digest classification, `windowInput`, the size thresholds,
+  `commitCompaction` and recap detection), `messages.ts` (message constructors,
+  `foldAssistant`, `clientDelta`, `recomputeMessage`), `turn.ts` (`isTurnIdling`
+  / `isTurnChatting` / `isTurnCompacting` / `hasAwaitingTools` / `isTurnBusy`),
+  `defaults.ts` (every `CORM_DEFAULT_*` constant), `config.ts`
+  (`validateConfig`), `framing.ts` (`frame` / `escapeFraming` /
+  `runtimeMessage`), `tokens.ts` (`estimate*Tokens`, `messageDigest`,
+  `toolCallKey`, `truncateContent`), `tools.ts` (`contentText` /
+  `toolResultText`, `cormTools`, `mergeToolArguments`), `static.ts` (`oneLine` /
+  `oneLineRegex`), `keys.ts` (the memory/state keys and `cormToolPrefix`) and
+  `disabled-tools.json` (the always-disabled tool list read by `cormTools` and
+  the Nix `tools.json` generation).
 - `src/corm/esbuild.mjs` holds the esbuild config and bundles the brain into the
   single unminified `src/corm/dist/index.js` Boa script (platform `neutral`,
   format `iife`, target `esnext`).
@@ -160,20 +192,30 @@ agent wants to change itself" to "the change exists in the real world."
       `aichat` client; its model defaults to the configured agent name.
     - `omw.nix` — `corm.omw`, a thin wrapper over the omw flake's `services.omw`
       module (imports `inputs.omw.nixosModules.default`). It exposes `agent`,
-      `variant`, `script`, `mode`, `environmentFile`, `bwrapArgs` (the
-      bubblewrap arguments handed to the wrapped MCPs) and `memory` (extra
-      seeded per-agent memory keys, how the benchmarks hand the brain its
-      prompt), hardcodes the rest, and builds `services.omw.settingsFile` by
-      overriding the `omw-config` package with the provider endpoints/models and
-      the agent script (so the service and the scaffolded test config share a
-      shape). Every provider runs a `<name>-prepare` oneshot before its serve
-      unit: it converts the configured store checkpoint into a writable
-      `StateDirectory` (`model.gguf` via `llama-cpp-convert` + `llama-quantize`,
-      or `model.ftw` via `ft checkpoint`) and stamps the source path in
-      `model.path`, re-converting only when that path changes. The `strata` kind
-      has nothing to convert (its pack and MTP are store derivations), so its
-      prepare unit is a no-op. The CPU/GPU providers then run a
-      `<name>-provider-warmup` oneshot after their serve unit: it POSTs a
+      `variant`, `script`, `mode`, `environmentFile`, `mcpServers` (the enabled
+      MCP toolings, handed to `omw-config`), `bwrapArgs` (the bubblewrap
+      arguments handed to the wrapped MCPs) and `memory` (extra seeded per-agent
+      memory keys, how the benchmarks hand the brain its prompt), hardcodes the
+      rest, and builds `services.omw.settingsFile` by overriding the
+      `omw-config` package with the provider endpoints/models, the enabled MCP
+      servers and the agent script (so the service and the scaffolded test
+      config share a shape). `omw-config.nix` gates each MCP tooling on
+      membership in `cormMcpServers`, seeds `corm_config.providers` /
+      `corm_config.toolings` from the enabled provider modules and MCP servers,
+      and picks the `corm_config.model` in the same `gpu → cpu → remote` order
+      the brain chats through, so the model name always matches the provider
+      actually used. It also always declares a private `internal-filesystem`
+      tooling — never gated on `cormMcpServers` — whose filesystem MCP is bound
+      to the agent data dir (`cormAgentDataDir`, default `${cormDataDir}/omw`,
+      i.e. `/var/lib/corm/data/omw`); the brain uses it for state and its tools
+      are hidden from the model. Every provider runs a `<name>-prepare` oneshot
+      before its serve unit: it converts the configured store checkpoint into a
+      writable `StateDirectory` (`model.gguf` via `llama-cpp-convert` +
+      `llama-quantize`, or `model.ftw` via `ft checkpoint`) and stamps the
+      source path in `model.path`, re-converting only when that path changes.
+      The `strata` kind has nothing to convert (its pack and MTP are store
+      derivations), so its prepare unit is a no-op. The CPU/GPU providers then
+      run a `<name>-provider-warmup` oneshot after their serve unit: it POSTs a
       minimal `/v1/chat/completions` request in a loop until the provider
       answers, then stays `RemainAfterExit` so omw starts only once the model is
       loaded.
@@ -249,13 +291,84 @@ agent wants to change itself" to "the change exists in the real world."
   sanctioned exception is the state manager's filesystem read/write at
   startup/shutdown so task state survives a shutdown.
 
+## Context management
+
+Corm serves one model and one KV cache, so every request shares a single global,
+prompt-free context window (`disk.window`) and only one chat/compaction
+generation runs at a time. The window (`lib/window.ts`, `types/window.ts`)
+carries the leading `system` message, the rolling `summary`, the framed `active`
+messages, the current session/params and client tools, and the size counters
+(`tokens`/`chars`, measured against the provider's `anchor`).
+
+- **Single writer.** There is no task stack: `endpointReducer` parks an
+  `endpoint-message` in `disk.inbox` while `isTurnBusy` (a generation is open or
+  `turn.awaiting` is non-empty), and `index.ts::drain` answers the inbox one
+  request at a time once the turn is idle. A `chat-delta`/`chat-end`/`error`
+  whose id is not the open generation is dropped.
+- **Input.** `windowInput` renders `[system][summary?][…active]`. The `system`
+  message is `runtimeSystemPrompt` + `chatSystemPrompt` joined by blank lines,
+  with the operator `config.prompt` appended under `promptPrelude`; it never
+  enters the window, so it survives compaction and is never duplicated. The
+  `summary`, when non-empty, is one leading `⟦runtime⟧` message under
+  `compactPrelude`.
+- **Framing.** Templates reject mid-conversation `system` messages, so only
+  `user`-role messages are framed (`⟦runtime⟧`/`⟦persona⟧`/`⟦client⟧`) and sent
+  as `user`; `assistant` and `tool` are sent raw under their own role. Framing
+  is applied on ingest and stored; both `⟦` and `⟧` are escaped and a full
+  `⟦<tag>⟧` attempt in inbound content is detected (`detectFraming`). It is not
+  a security boundary.
+- **Identity.** Messages are content-addressed (`messageDigest`) into the global
+  `active` set plus bounded `disk.receipts`, so a re-offered message is
+  classified `current` (already present), `compacted` (in a receipt) or `new`,
+  and only `new` is appended (`appendInboundMessages`).
+- **Truncation.** Every ingested user/tool body and every tool result is capped
+  at `messageTokenLimit` (head + `truncationMarker` + tail) before framing; a
+  cut message gets a following `⟦runtime⟧` `truncationHint`. Assistant messages
+  are stored verbatim.
+- **Compaction.** A completed turn, a tool settle or an ingest whose
+  `windowSize` (`max(anchor, tokens)`) is at/above
+  `compactThreshold * contextLength` starts a compaction generation:
+  `start-compaction-generation` sends `windowInput` plus `compactPrompt`
+  appended **last** (never stored), collects the stream into `turn.summary`
+  (capped at `compactSummaryLimit`), and on completion `commit-compaction` folds
+  the evicted set into `window.summary`, records the evicted digests as a
+  receipt and drops the anchor. The protected tail is the newest
+  `min(protectMessages, floor(count * protectRatio))` messages (at least one).
+  `compactPrompt` is always appended after the shared prefix so the KV cache is
+  reused and it is not re-sent on the resumed turn. A turn that crosses
+  `hardThreshold` mid-stream folds and streams the delta, streams
+  `compactNotice`, cancels the generation and starts a compaction with
+  `resume: true`. A failed compaction is retried (`chat.ts::onError` starts
+  another compaction); it is never treated as done and never falls back.
+- **Recap.** `needsRecap` examines only a request's last `requestMessages`
+  messages and fires when one of those last `recapMessages` is among the
+  receipts; the reducer then computes `recapReplay` (the newest `replayMessages`
+  evicted messages of that tail, trimmed from the oldest to fit
+  `replayRatio * contextLength`), and `append-recap` inserts a `recapNotice`
+  (filled with `{{NAME}}`/`{{ID}}`/`{{DESCRIPTION}}`), the replayed messages and
+  a closing `recapEndNotice` before the new turn; interleaving alone never
+  recaps.
+- **The turn.** The visible answer streams into `active` as a live `assistant`
+  message (`foldAssistantDelta`), and settled tool exchanges are stored as
+  `tool` messages (`appendToolResult`), so the model never re-answers an earlier
+  message; `forward-client-tool-call` leaves client tool calls to be echoed by
+  the client. A tool call emitted as text (matching `toolCallPattern` in the
+  visible content, or the reasoning when there is no content) is retried with
+  `toolCallHint` up to `toolCallRetryLimit`; the same call (name + canonical
+  arguments) repeated `circuitBreakerLimit` times in one user turn trips the
+  breaker, which drops the last exchange and appends `circuitBreakerHint`.
+- **Config.** Every context knob is a field of `cormConfigZod`
+  (`types/config.ts`) and is overlaid under `corm_config_<field>`
+  (`corm.settings` is freeform). `model` and `contextLength` are required, and
+  `validateConfig` (`lib/config.ts`) throws at startup on any violated bound.
+
 ## Logging
 
 The brain logs through `omw.host.log(level, message)` (omw echoes it to the
-journal). `corm/lib/log.ts` wraps that host method in a `CormLogger` with one
-method per level; handlers read it from `context.logger`, and the managers build
-one from their `omw.host`. Every log site picks its level from this fixed
-policy:
+journal). `corm/services/logger.ts` wraps that host method in a `CormLogger`
+with one method per level; the managers build one from `omw.host` and the entry
+loop and dispatcher take it directly. Every log site picks its level from this
+fixed policy:
 
 - **Unrecoverable errors throw.** When the program cannot continue (no provider
   configured, unknown tool/factory kind, malformed restored state), throw and
@@ -272,9 +385,8 @@ policy:
 - **Sub-state transitions log `debug`.** Placement and dispatch decisions, queue
   merges, turn resets, stream finishes, tool registration and queuing, and
   config/subscription loading are `debug`.
-- **Critical function calls log `trace`.** Entry/exit of the routing seams
-  (`machine.handle`, registrar `should`/`create`, `tooling.invoke`/`settle`,
-  `_beginTurn`, `_resume`) and per-event receipt are `trace`.
+- **Critical function calls log `trace`.** Per-event receipt (`recv <kind>`) and
+  each dispatched effect are `trace`.
 
 Keep messages concise and include the identifiers that matter for the seam (task
 id, session, provider, tool, uuid). The unit-test fake host already provides a
@@ -357,8 +469,11 @@ carries the `# x-release-please-version` annotation so it is bumped alongside
   the dev shell provides alongside `omw`. It layers each
   `e2e/<case>.omw.test.toml` over `e2e/omw.test.base.json`. `omw-test --dump`
   (trace, assertion cursor, mock snapshots) is the tool for debugging a failing
-  or hanging case. Note the mock endpoint never emits `endpoint-session-end`, so
-  that path is not scriptable in e2e.
+  or hanging case. The endpoint mock scripts concurrent sessions with
+  `session_id`, orders requests with `after`, and emits `endpoint-session-end`
+  via `session_end = { close = 0 }`; the omw testing docs under `docs/testing/`
+  are the reference. Each case opens with a comment block stating what it proves
+  and the crucial invariant it protects; keep that habit when adding a case.
 
 ## Nix and dependencies
 

@@ -1,33 +1,36 @@
-import { cormStateFile, cormStateKey } from "corm/lib/keys";
-import type { CormOmw } from "corm/lib/omw";
+import {
+  CORM_DEFAULT_CHAT_SYSTEM_PROMPT,
+  CORM_DEFAULT_RUNTIME_SYSTEM_PROMPT,
+} from "corm/lib/defaults";
+import {
+  cormStateFile,
+  cormStateKey,
+  cormSubscriptionsKey,
+} from "corm/lib/keys";
+import type { CormHandles } from "corm/services/handles";
+import { createCormLogger } from "corm/services/logger";
 import { createCormStateManager } from "corm/services/state";
 import { expect, test } from "vitest";
+import { baseConfig, makeHost } from "../common";
 
-const emptyState = '{"pending":[],"immediate":[]}';
-
-function makeOmw(
+const makeManager = (
   options: {
-    memory?: string;
+    memory?: [string, string][];
     read?: string;
-    readThrows?: boolean;
     noFilesystem?: boolean;
+    tools?: ChatTool[];
+    config?: ReturnType<typeof baseConfig>;
   } = {},
-) {
-  const memory = new Map<string, string>();
-  if (options.memory !== undefined) {
-    memory.set(cormStateKey, options.memory);
+) => {
+  const fake = makeHost();
+  for (const [key, value] of options.memory ?? []) {
+    fake.memory.set(key, value);
   }
 
   const writes: { tool: string; args: unknown }[] = [];
-  let reads = 0;
-
   const filesystem = {
     callToolBlocking: (tool: string, args: unknown) => {
       if (tool === "read_text_file") {
-        reads += 1;
-        if (options.readThrows) {
-          throw new Error("missing file");
-        }
         return {
           name: tool,
           arguments: args,
@@ -39,79 +42,195 @@ function makeOmw(
     },
   };
 
-  const omw = {
-    host: {
-      log: () => {},
-      memoryGet: (key: string) => memory.get(key),
-      memorySet: (key: string, value: string) => memory.set(key, value),
+  const handles = {
+    host: () => fake.host,
+    tools: () => options.tools ?? [],
+    tooling: (name: string) => {
+      if (options.noFilesystem || name !== "internal-filesystem") {
+        return undefined;
+      }
+      return filesystem;
     },
-    tooling: {
-      get: (name: string) => {
-        if (options.noFilesystem || name !== "filesystem") {
-          throw new Error(`no tooling ${name}`);
-        }
-        return filesystem;
+  } as unknown as CormHandles;
+
+  const manager = createCormStateManager(
+    createCormLogger(fake.host),
+    handles,
+    options.config ?? baseConfig(),
+  );
+
+  return { manager, fake, writes };
+};
+
+test("load creates and stores subscriptions for the model", () => {
+  const { manager, fake } = makeManager();
+
+  const state = manager.load();
+
+  expect(state.memory.subscriptions).toEqual({
+    lifecycle: "lifecycle-sub",
+    endpoint: "endpoint-sub-corm",
+    generation: undefined,
+  });
+  expect(fake.counters.lifecycle).toBe(1);
+  expect(fake.subscribedEndpoints).toEqual(["corm"]);
+});
+
+test("load reuses stored subscriptions", () => {
+  const { manager, fake } = makeManager({
+    memory: [
+      [
+        cormSubscriptionsKey,
+        JSON.stringify({
+          subscriptions: {
+            lifecycle: "stored-lifecycle",
+            endpoint: "stored-endpoint",
+          },
+        }),
+      ],
+    ],
+  });
+
+  manager.load();
+
+  expect(fake.counters.lifecycle).toBe(0);
+});
+
+test("load defaults the window with the combined system prompt", () => {
+  const { manager } = makeManager();
+  const state = manager.load();
+
+  expect(state.disk.window.active).toEqual([]);
+  expect(state.disk.window.session).toBe("");
+  expect(
+    state.disk.window.system.content.startsWith(
+      CORM_DEFAULT_RUNTIME_SYSTEM_PROMPT,
+    ),
+  ).toBe(true);
+  expect(state.disk.window.system.content).toContain(
+    CORM_DEFAULT_CHAT_SYSTEM_PROMPT,
+  );
+});
+
+test("load restores a persisted disk state but resets the window system and turn", () => {
+  const saved = {
+    inbox: [],
+    window: {
+      system: {
+        message: { role: "system", content: "stored" },
+        role: "system",
+        content: "stored",
+        digest: "d",
+        chars: 6,
+        tokens: 6,
       },
+      active: [],
+      session: "s",
     },
-  } as unknown as CormOmw;
+    turn: { summary: "partial", awaiting: {} },
+  };
+  const { manager } = makeManager({
+    memory: [[cormStateKey, JSON.stringify(saved)]],
+  });
 
-  return { omw, memory, writes, reads: () => reads };
-}
+  const state = manager.load();
 
-test("load prefers the memory value and skips the filesystem", () => {
-  const { omw, reads } = makeOmw({ memory: emptyState, readThrows: true });
-  const manager = createCormStateManager(omw);
-
-  expect(manager.load()).toEqual({ pending: [], immediate: [] });
-  expect(reads()).toBe(0);
+  expect(state.disk.window.session).toBe("s");
+  expect(state.disk.turn.summary).toBeUndefined();
+  expect(state.disk.turn.awaiting).toEqual({});
+  expect(state.disk.window.system.content).toBe(
+    CORM_DEFAULT_RUNTIME_SYSTEM_PROMPT +
+      "\n\n" +
+      CORM_DEFAULT_CHAT_SYSTEM_PROMPT,
+  );
 });
 
-test("load recovers from the filesystem when memory is empty", () => {
-  const { omw, reads } = makeOmw({ read: emptyState });
-  const manager = createCormStateManager(omw);
-
-  expect(manager.load()).toEqual({ pending: [], immediate: [] });
-  expect(reads()).toBe(1);
-});
-
-test("load falls back to an empty state", () => {
-  const { omw } = makeOmw({ noFilesystem: true });
-  const manager = createCormStateManager(omw);
-
-  expect(manager.load()).toEqual({ pending: [], immediate: [] });
-});
-
-test("release persists state to memory on reload", () => {
-  const { omw, memory } = makeOmw({ readThrows: true });
-  const manager = createCormStateManager(omw);
-
+test("release persists disk and subscriptions to memory on reload", () => {
+  const { manager, fake } = makeManager();
   manager.load();
   manager.release({ id: "r", kind: "reload", payload: null });
 
-  expect(memory.get(cormStateKey)).toBe(emptyState);
+  expect(fake.memory.has(cormStateKey)).toBe(true);
 });
 
-test("release persists state to the filesystem on shutdown", () => {
-  const { omw, writes } = makeOmw({ readThrows: true });
-  const manager = createCormStateManager(omw);
-
+test("release persists the disk state to the filesystem on shutdown", () => {
+  const { manager, writes } = makeManager();
   manager.load();
   manager.release({ id: "s", kind: "shutdown", payload: null });
 
-  expect(writes).toEqual([
-    {
-      tool: "write_file",
-      args: { path: cormStateFile, content: emptyState },
+  expect(writes).toHaveLength(1);
+  expect(writes[0].tool).toBe("write_file");
+  expect((writes[0].args as { path: string }).path).toBe(cormStateFile);
+});
+
+test("load recovers the disk state from the filesystem when memory is empty", () => {
+  const saved = {
+    inbox: [],
+    window: { active: [], session: "recovered" },
+    turn: {},
+  };
+  const { manager } = makeManager({ read: JSON.stringify(saved) });
+
+  const state = manager.load();
+
+  expect(state.disk.window.session).toBe("recovered");
+});
+
+test("load recreates subscriptions when the stored ones are malformed", () => {
+  const { manager, fake } = makeManager({
+    memory: [[cormSubscriptionsKey, "not json"]],
+  });
+
+  manager.load();
+
+  expect(fake.counters.lifecycle).toBe(1);
+});
+
+test("load recomputes the derived fields of restored messages", () => {
+  const saved = {
+    inbox: [],
+    window: {
+      active: [
+        {
+          message: { role: "user", content: "⟦client⟧\n\nhi" },
+          role: "user",
+          tag: "client",
+        },
+      ],
     },
+  };
+  const { manager } = makeManager({
+    memory: [[cormStateKey, JSON.stringify(saved)]],
+  });
+
+  const state = manager.load();
+
+  expect(state.disk.window.active[0]?.digest).not.toBe("");
+  expect(state.disk.window.active[0]?.tokens).toBeGreaterThan(0);
+});
+
+test("load filters the window tools by the configured subset and disabled list", () => {
+  const config = baseConfig({ tools: ["filesystem__echo"] });
+  const { manager } = makeManager({
+    config,
+    tools: [
+      { name: "corm__filesystem__echo" } as ChatTool,
+      { name: "corm__filesystem__read_file" } as ChatTool,
+      { name: "corm__git__git_status" } as ChatTool,
+    ],
+  });
+
+  const state = manager.load();
+
+  expect(state.disk.window.tools.map((tool) => tool.name)).toEqual([
+    "corm__filesystem__echo",
   ]);
 });
 
-test("release before load does nothing", () => {
-  const { omw, writes, memory } = makeOmw({ readThrows: true });
-  const manager = createCormStateManager(omw);
+test("load skips filesystem recovery when the tooling is unavailable", () => {
+  const { manager } = makeManager({ noFilesystem: true });
 
-  manager.release({ id: "r", kind: "reload", payload: null });
+  const state = manager.load();
 
-  expect(writes).toEqual([]);
-  expect(memory.size).toBe(0);
+  expect(state.disk.window.session).toBe("");
 });

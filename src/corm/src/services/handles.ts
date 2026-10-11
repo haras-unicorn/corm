@@ -1,203 +1,198 @@
-import { cormSubscriptionsKey } from "corm/lib/keys";
-import { type CormLogger, createCormLogger } from "corm/lib/log";
-import type {
-  CormAnyProviderHandle,
-  CormAnyToolingHandle,
-  CormOmw,
-} from "corm/lib/omw";
-import { type CormSubscriptions, cormSubscriptionsZod } from "corm/lib/opaque";
-
-export interface CormNamedTooling {
-  name: string;
-  handle: CormAnyToolingHandle;
-}
+import type { ArrayTail } from "type-fest";
+import { cormToolPrefix } from "../lib/keys";
+import type { CormLogger } from "../services/logger";
+import type { CormConfig } from "../types/config";
+import {
+  type CormAnyProviderHandle,
+  type CormAnyToolingHandle,
+  type CormOmw,
+  type CormOmwHost,
+  type CormOmwTool,
+  type CormProviderHandle,
+  type CormProviderName,
+  type CormToolingHandle,
+  type CormToolingName,
+  cormInternalToolingNames,
+  cormInternalToolingPrefix,
+  cormProviderNames,
+  cormToolingNames,
+  isCormProviderName,
+  isCormToolingName,
+} from "../types/omw";
 
 export interface CormHandlesManager {
   load(): CormHandles;
-  release(event: OmwEvent): void;
 }
+
+type ChatParameters = Parameters<CormAnyProviderHandle["chatStream"]>;
+type CallParameters = Parameters<CormAnyToolingHandle["callTool"]>;
 
 export interface CormHandles {
-  host(): Host;
+  host(): CormOmwHost;
 
-  providers(): CormAnyProviderHandle[];
+  chat(...parameters: ChatParameters): string;
+  call(...parameters: CallParameters): string;
+  cancel(id: string): void;
 
-  main(): CormAnyProviderHandle;
+  tools(): CormOmwTool[];
 
-  toolings(): CormNamedTooling[];
-
-  subscriptions(): CormSubscriptions;
+  provider<T extends CormProviderName>(
+    provider: T,
+  ): CormProviderHandle<T> | undefined;
+  tooling<T extends CormToolingName>(
+    tooling: T,
+  ): CormToolingHandle<T> | undefined;
 }
 
-export const createCormHandlesManager = (omw: CormOmw) =>
-  new OmwCormHandlesManager(omw) as CormHandlesManager;
+export const createCormHandlesManager = (
+  omw: CormOmw,
+  config: CormConfig,
+  logger: CormLogger,
+) => new CormOmwHandlesManager(omw, config, logger) as CormHandlesManager;
 
-class OmwCormHandlesManager {
+class CormOmwHandlesManager {
   private _omw: CormOmw;
-  private _handles?: OmwCormHandles;
+  private _config: CormConfig;
+  private _logger: CormLogger;
+  private _handles?: CormOmwHandles;
 
-  constructor(omw: CormOmw) {
+  constructor(omw: CormOmw, config: CormConfig, logger: CormLogger) {
     this._omw = omw;
+    this._config = config;
+    this._logger = logger;
     this._handles = undefined;
   }
 
   public load(): CormHandles {
-    if (this._handles === undefined) {
-      this._handles = new OmwCormHandles(this._omw);
-    }
-
+    this._handles ??= new CormOmwHandles(this._omw, this._config, this._logger);
     return this._handles;
-  }
-
-  public release(event: OmwEvent): void {
-    if (this._handles !== undefined) {
-      this._handles.release(event);
-    }
   }
 }
 
-class OmwCormHandles {
+class CormOmwHandles {
   private _omw: CormOmw;
   private _logger: CormLogger;
 
   private _providers: CormAnyProviderHandle[];
-  private _toolings: CormNamedTooling[];
+  private _toolings: CormAnyToolingHandle[];
+  private _tools: CormOmwTool[];
 
-  private _subscriptions: CormSubscriptions;
-
-  constructor(omw: CormOmw) {
+  constructor(omw: CormOmw, config: CormConfig, logger: CormLogger) {
     this._omw = omw;
-    this._logger = createCormLogger(omw.host);
+    this._logger = logger;
 
-    this._providers = [
-      this._provider("gpu"),
-      this._provider("remote"),
-      this._provider("cpu"),
-    ].filter((provider) => provider !== undefined);
+    this._providers = (config.providers ?? cormProviderNames)
+      .filter(isCormProviderName)
+      .map((name) => this._get(() => this._omw.provider.get(name)))
+      .filter((provider) => provider !== undefined);
 
-    if (this._providers.length === 0) {
+    if (!this._providers.length) {
       throw new Error("at least one provider must be configured");
     }
 
-    this._toolings = [
-      this._tooling("nixos"),
-      this._tooling("nix"),
-      this._tooling("git"),
-      this._tooling("github"),
-      this._tooling("rss"),
-      this._tooling("plan"),
-      this._tooling("filesystem"),
-    ].filter((tooling) => tooling !== undefined);
+    const toolingNames = [
+      ...new Set([
+        ...cormInternalToolingNames,
+        ...(config.toolings ?? cormToolingNames),
+      ]),
+    ];
+    this._toolings = toolingNames
+      .filter(isCormToolingName)
+      .map((name) => this._get(() => this._omw.tooling.get(name)))
+      .filter((tooling) => tooling !== undefined);
 
-    this._logger.info(
-      `loaded providers [${this._providers
-        .map((provider) => provider.name)
-        .join(", ")}]`,
-    );
-    this._logger.info(
-      `loaded toolings [${this._toolings
-        .map((tooling) => tooling.name)
-        .join(", ")}]`,
-    );
+    this._tools = this._toolings
+      .filter((tooling) => !tooling.name.startsWith(cormInternalToolingPrefix))
+      .flatMap((tooling) =>
+        tooling.listTools().map((tool) => ({
+          ...tool,
+          name: `${cormToolPrefix}${tooling.name}__${tool.name}`,
+        })),
+      );
 
-    this._subscriptions = this._loadSubscriptions();
+    this._logger.debug("handles loaded");
   }
 
-  public host(): Host {
+  public host(): CormOmwHost {
     return this._omw.host;
   }
 
-  public providers(): CormAnyProviderHandle[] {
-    return this._providers;
-  }
-
-  public main(): CormAnyProviderHandle {
-    return this._providers[0];
-  }
-
-  public toolings(): CormNamedTooling[] {
-    return this._toolings;
-  }
-
-  public subscriptions(): CormSubscriptions {
-    return this._subscriptions;
-  }
-
-  public release(event: OmwEvent): void {
-    if (event.kind === "reload") {
-      this._logger.debug("persisting corm subscriptions to memory");
-      this._omw.host.memorySet(
-        cormSubscriptionsKey,
-        JSON.stringify(this._subscriptions),
-      );
+  public chat(...parameters: ChatParameters): string {
+    const provider = this._chatProvider();
+    if (provider === undefined) {
+      throw new Error("no provider available");
     }
+
+    return provider.chatStream(...parameters);
   }
 
-  private _provider(name: string): CormAnyProviderHandle | undefined {
-    try {
-      const lookup = this._omw.provider as unknown as {
-        get(name: string): CormAnyProviderHandle;
-      };
-      return lookup.get(name);
-    } catch {
-      this._logger.debug(`provider ${name} is not configured`);
-      return undefined;
+  public call(...parameters: CallParameters): string {
+    const [tool, ...rest] = parameters;
+    const name = tool.startsWith(cormToolPrefix)
+      ? tool.slice(cormToolPrefix.length)
+      : tool;
+    const [toolingName, toolName] = name.split("__");
+    const tooling = this._toolings.find((entry) => entry.name === toolingName);
+    if (tooling === undefined) {
+      throw new Error(`no tooling ${toolingName}`);
     }
+
+    return tooling.callTool(toolName, ...(rest as ArrayTail<CallParameters>));
   }
 
-  private _tooling(name: string): CormNamedTooling | undefined {
-    try {
-      const lookup = this._omw.tooling as unknown as {
-        get(name: string): CormAnyToolingHandle;
-      };
-      return { name, handle: lookup.get(name) };
-    } catch {
-      this._logger.debug(`tooling ${name} is not configured`);
-      return undefined;
-    }
-  }
-
-  private _loadSubscriptions(): CormSubscriptions {
-    const model = this._omw.host.whoami();
-
-    const stored = this._omw.host.memoryGet(cormSubscriptionsKey);
-    if (stored) {
-      try {
-        const parsed = cormSubscriptionsZod.safeParse(JSON.parse(stored));
-        if (parsed.success && parsed.data.model === model) {
-          this._logger.debug(`reusing stored subscriptions for model ${model}`);
-          return parsed.data;
-        }
-        if (parsed.success) {
-          this._logger.info(
-            `agent model changed ${parsed.data.model} -> ${model}; resubscribing endpoint`,
-          );
-          this._omw.host.unsubscribeEndpoint(parsed.data.endpoint);
-        } else {
-          this._logger.warn(
-            "stored subscriptions are invalid; recreating them",
-          );
-        }
-      } catch {
-        this._logger.warn(
-          "stored subscriptions are unreadable; recreating them",
+  public cancel(id: string): void {
+    for (const provider of this._providers) {
+      if (provider.isOpen(id)) {
+        provider.cancel(id);
+        this._logger.debug(
+          `cancelled generation ${id} of ${provider.name} provider`,
         );
+        return;
       }
     }
 
-    this._logger.info(`creating subscriptions for model ${model}`);
+    for (const tooling of this._toolings) {
+      if (tooling.isOpen(id)) {
+        tooling.cancel(id);
+        this._logger.debug(`cancelled call ${id} of ${tooling.name} tooling`);
+        return;
+      }
+    }
 
-    const subscriptions = {
-      lifecycle: this._omw.host.subscribeLifecycle(),
-      endpoint: this._omw.host.subscribeEndpoint(model),
-      model,
-    } as CormSubscriptions;
+    throw new Error(`could not cancel ${id}`);
+  }
 
-    this._omw.host.memorySet(
-      cormSubscriptionsKey,
-      JSON.stringify(subscriptions),
+  public tools(): CormOmwTool[] {
+    return this._tools;
+  }
+
+  private _chatProvider(): CormAnyProviderHandle | undefined {
+    return (
+      this.provider("gpu") ?? this.provider("cpu") ?? this.provider("remote")
     );
+  }
 
-    return subscriptions;
+  private _get<T>(lookup: () => T): T | undefined {
+    try {
+      return lookup();
+    } catch {
+      return undefined;
+    }
+  }
+
+  public provider<T extends CormProviderName>(
+    provider: T,
+  ): CormProviderHandle<T> | undefined {
+    return this._providers.find(({ name }) => name === provider) as
+      | CormProviderHandle<T>
+      | undefined;
+  }
+
+  public tooling<T extends CormToolingName>(
+    tooling: T,
+  ): CormToolingHandle<T> | undefined {
+    return this._toolings.find(({ name }) => name === tooling) as
+      | CormToolingHandle<T>
+      | undefined;
   }
 }

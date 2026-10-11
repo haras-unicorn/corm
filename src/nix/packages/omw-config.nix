@@ -30,9 +30,19 @@
           cormStateDir ? "/var/lib/${cormName}",
           cormWorkspaceDir ? "${cormStateDir}/workspace",
           cormDataDir ? "${cormStateDir}/data",
+          cormAgentDataDir ? "${cormDataDir}/omw",
 
           cormScript ? "${cormPackages.corm}/index.js",
           cormConfig ? { },
+          cormMcpServers ? [
+            "nixos"
+            "nix"
+            "git"
+            "github"
+            "rss"
+            "plan"
+            "filesystem"
+          ],
           cormMemory ? { },
           cormTunables ? { },
 
@@ -72,10 +82,15 @@
           cormConfigModel =
             if cormGpuHost != null && cormGpuPort != null && cormGpuModel != null then
               cormGpuModel
-            else if cormRemoteBaseUrl != null && cormRemoteModel != null then
-              cormRemoteModel
+            else if cormCpuHost != null && cormCpuPort != null && cormCpuModel != null then
+              cormCpuModel
             else
-              cormCpuModel;
+              cormRemoteModel;
+
+          cormProviderNames =
+            lib.optional (cormGpuHost != null && cormGpuPort != null && cormGpuModel != null) "gpu"
+            ++ lib.optional (cormCpuHost != null && cormCpuPort != null && cormCpuModel != null) "cpu"
+            ++ lib.optional (cormRemoteBaseUrl != null && cormRemoteModel != null) "remote";
 
           settings = {
             # NOTE: secrets cannot always be mlock()ed (for example inside a
@@ -109,104 +124,119 @@
                 };
               };
 
-            tooling = {
-              nixos = {
-                kind = "mcp";
-                transport = "stdio";
-                command = lib.getExe mcp-nixos;
-              };
-
-              nix = {
-                kind = "mcp";
-                transport = "stdio";
-                command = lib.getExe mcp-nix;
-                env.MCP_NIX_SANDBOX = builtins.concatStringsSep " " (
-                  [
-                    "--unshare-all"
-                  ]
-                  ++ (if cormBwrapArgs != null then cormBwrapArgs else selfLib.bwrap.base)
-                  ++ [
-                    "--bind"
-                    cormWorkspaceDir
-                    cormWorkspaceDir
-                  ]
-                );
-              };
-
-              git = {
-                kind = "mcp";
-                transport = "stdio";
-                command = lib.getExe git-mcp-server-ssh-agent;
-                env = {
-                  MCP_TRANSPORT_TYPE = "stdio";
-                  MCP_LOG_LEVEL = "warn";
-                  GIT_BASE_DIR = "${cormWorkspaceDir}/projects";
-                  GIT_SSH_DIR = "${cormDataDir}/ssh";
-                  GIT_SIGN_COMMITS = "false";
+            tooling =
+              lib.optionalAttrs (builtins.elem "nixos" cormMcpServers) {
+                nixos = {
+                  kind = "mcp";
+                  transport = "stdio";
+                  command = lib.getExe mcp-nixos;
+                };
+              }
+              // lib.optionalAttrs (builtins.elem "nix" cormMcpServers) {
+                nix = {
+                  kind = "mcp";
+                  transport = "stdio";
+                  command = lib.getExe mcp-nix;
+                  env.MCP_NIX_SANDBOX = builtins.concatStringsSep " " (
+                    [
+                      "--unshare-all"
+                    ]
+                    ++ (if cormBwrapArgs != null then cormBwrapArgs else selfLib.bwrap.base)
+                    ++ [
+                      "--bind"
+                      cormWorkspaceDir
+                      cormWorkspaceDir
+                    ]
+                  );
+                };
+              }
+              // lib.optionalAttrs (builtins.elem "git" cormMcpServers) {
+                git = {
+                  kind = "mcp";
+                  transport = "stdio";
+                  command = lib.getExe git-mcp-server-ssh-agent;
+                  env = {
+                    MCP_TRANSPORT_TYPE = "stdio";
+                    MCP_LOG_LEVEL = "warn";
+                    GIT_BASE_DIR = "${cormWorkspaceDir}/projects";
+                    GIT_SSH_DIR = "${cormDataDir}/ssh";
+                    GIT_SIGN_COMMITS = "false";
+                  };
+                };
+              }
+              // lib.optionalAttrs (builtins.elem "github" cormMcpServers) {
+                github = {
+                  kind = "mcp";
+                  transport = "stdio";
+                  command = lib.getExe github-mcp-server;
+                  args = [ "stdio" ];
+                  env.GITHUB_TOOLSETS = builtins.concatStringsSep "," [
+                    "context"
+                    "repos"
+                    "issues"
+                    "labels"
+                    "notifications"
+                    "discussions"
+                    "projects"
+                    "stargazers"
+                    "actions"
+                    "pull_requests"
+                    "users"
+                  ];
+                };
+              }
+              // lib.optionalAttrs (builtins.elem "rss" cormMcpServers) {
+                rss = {
+                  kind = "mcp";
+                  transport = "stdio";
+                  command = lib.getExe mcp-rss;
+                };
+              }
+              // lib.optionalAttrs (builtins.elem "plan" cormMcpServers) {
+                plan = {
+                  kind = "mcp";
+                  transport = "stdio";
+                  command = lib.getExe mcp-plan;
+                  env.MCP_PLAN__DATABASE__URL = "sqlite://${cormDataDir}/plan.db";
+                  args = [
+                    "--config"
+                    (toml.generate "plan.toml" {
+                      runtime = {
+                        tps_in = 800;
+                        tps_out = 30;
+                        max_task_duration_secs = 600;
+                        queue_limit = 10;
+                        max_retries = 3;
+                      };
+                      sources = [
+                        {
+                          id = "github";
+                          title = "GitHub";
+                          description = "GitHub notifications";
+                          type = "poll";
+                        }
+                      ];
+                    })
+                    "run"
+                  ];
+                };
+              }
+              // lib.optionalAttrs (builtins.elem "filesystem" cormMcpServers) {
+                filesystem = {
+                  kind = "mcp";
+                  transport = "stdio";
+                  command = lib.getExe mcp-server-filesystem-bwrap;
+                  env.FS_BASE_DIR = cormWorkspaceDir;
+                };
+              }
+              // {
+                internal-filesystem = {
+                  kind = "mcp";
+                  transport = "stdio";
+                  command = lib.getExe mcp-server-filesystem-bwrap;
+                  env.FS_BASE_DIR = cormAgentDataDir;
                 };
               };
-
-              github = {
-                kind = "mcp";
-                transport = "stdio";
-                command = lib.getExe github-mcp-server;
-                args = [ "stdio" ];
-                env.GITHUB_TOOLSETS = builtins.concatStringsSep "," [
-                  "context"
-                  "repos"
-                  "issues"
-                  "labels"
-                  "notifications"
-                  "discussions"
-                  "projects"
-                  "stargazers"
-                  "actions"
-                  "pull_requests"
-                  "users"
-                ];
-              };
-
-              rss = {
-                kind = "mcp";
-                transport = "stdio";
-                command = lib.getExe mcp-rss;
-              };
-
-              plan = {
-                kind = "mcp";
-                transport = "stdio";
-                command = lib.getExe mcp-plan;
-                env.MCP_PLAN__DATABASE__URL = "sqlite://${cormStateDir}/plan.db";
-                args = [
-                  "--config"
-                  (toml.generate "plan.toml" {
-                    runtime = {
-                      tps_in = 800;
-                      tps_out = 30;
-                      max_task_duration_secs = 600;
-                      queue_limit = 10;
-                      max_retries = 3;
-                    };
-                    sources = [
-                      {
-                        id = "github";
-                        title = "GitHub";
-                        description = "GitHub notifications";
-                        type = "poll";
-                      }
-                    ];
-                  })
-                  "run"
-                ];
-              };
-
-              filesystem = {
-                kind = "mcp";
-                transport = "stdio";
-                command = lib.getExe mcp-server-filesystem-bwrap;
-                env.FS_BASE_DIR = cormWorkspaceDir;
-              };
-            };
 
             runtime.js.kind = "js";
 
@@ -219,6 +249,8 @@
               ${cormAgent} = {
                 "corm_config" = {
                   model = cormConfigModel;
+                  providers = cormProviderNames;
+                  toolings = cormMcpServers;
                 }
                 // cormConfig;
               }
@@ -244,6 +276,7 @@
             stateDir = cormStateDir;
             workspaceDir = cormWorkspaceDir;
             dataDir = cormDataDir;
+            agentDataDir = cormAgentDataDir;
 
             script = cormScript;
             config = cormConfig;
@@ -282,6 +315,10 @@
           cormName = "corm";
 
           cormStateDir = "/tmp/${cormName}-scaffold";
+
+          cormConfig = {
+            contextLength = 131072;
+          };
 
           cormCpuHost = "127.0.0.1";
           cormCpuPort = selfLib.ports.cpu-provider;

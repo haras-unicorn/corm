@@ -1,161 +1,174 @@
-import { cormSubscriptionsKey } from "corm/lib/keys";
-import type { CormOmw } from "corm/lib/omw";
 import { createCormHandlesManager } from "corm/services/handles";
+import { createCormLogger } from "corm/services/logger";
+import type { CormConfig } from "corm/types/config";
 import { expect, test } from "vitest";
-import { makeHost, makeProvider, makeToolingHandle } from "../common";
+import {
+  baseConfig,
+  makeHost,
+  makeOmw,
+  makeProvider,
+  makeTooling,
+} from "../common";
 
-function makeOmw(
-  options: {
-    providers?: Record<string, ProviderHandle>;
-    toolings?: Record<string, ToolingHandle>;
-    host?: Host;
-  } = {},
-) {
-  const { host: defaultHost } = makeHost();
-  const host = options.host ?? defaultHost;
+const setup = (
+  options: Parameters<typeof makeOmw>[0],
+  config: Partial<CormConfig> = {},
+) => {
+  const { host } = makeHost();
+  const omw = makeOmw({ host, ...options });
+  return createCormHandlesManager(
+    omw,
+    baseConfig(config),
+    createCormLogger(host),
+  ).load();
+};
 
-  return {
-    provider: {
-      get: (name: string) => {
-        const provider = options.providers?.[name];
-        if (provider === undefined) {
-          throw new Error(`no provider ${name}`);
-        }
-        return provider;
-      },
-    },
-    tooling: {
-      get: (name: string) => {
-        const tooling = options.toolings?.[name];
-        if (tooling === undefined) {
-          throw new Error(`no tooling ${name}`);
-        }
-        return tooling;
-      },
-    },
-    host,
-  } as unknown as CormOmw;
-}
-
-test("providers are ordered gpu, remote, cpu", () => {
-  const manager = createCormHandlesManager(
-    makeOmw({
-      providers: {
-        gpu: makeProvider("gpu"),
-        remote: makeProvider("remote"),
-        cpu: makeProvider("cpu"),
-      },
-    }),
-  );
-
-  expect(
-    manager
-      .load()
-      .providers()
-      .map((provider) => provider.name),
-  ).toEqual(["gpu", "remote", "cpu"]);
+test("at least one provider is required", () => {
+  expect(() => setup({})).toThrow("at least one provider");
 });
 
 test("missing providers are filtered out", () => {
-  const manager = createCormHandlesManager(
-    makeOmw({ providers: { cpu: makeProvider("cpu") } }),
+  const handles = setup({ providers: { cpu: makeProvider("cpu") } });
+
+  expect(handles.chat("model", [], [])).toBe("cpu-gen-1");
+});
+
+test("only the providers named in the config are probed", () => {
+  const handles = setup(
+    { providers: { gpu: makeProvider("gpu"), cpu: makeProvider("cpu") } },
+    { providers: ["gpu"] },
   );
 
-  expect(
-    manager
-      .load()
-      .providers()
-      .map((provider) => provider.name),
-  ).toEqual(["cpu"]);
+  expect(handles.provider("gpu")).toBeDefined();
+  expect(handles.provider("cpu")).toBeUndefined();
 });
 
-test("at least one provider is required", () => {
-  const manager = createCormHandlesManager(makeOmw());
-
-  expect(() => manager.load()).toThrow("at least one provider");
+test("an empty provider list still requires a provider", () => {
+  expect(() =>
+    setup({ providers: { gpu: makeProvider("gpu") } }, { providers: [] }),
+  ).toThrow("at least one provider");
 });
 
-test("configured toolings are enumerated", () => {
-  const manager = createCormHandlesManager(
-    makeOmw({
-      providers: { cpu: makeProvider("cpu") },
+test("chat prefers gpu over cpu", () => {
+  const handles = setup({
+    providers: { gpu: makeProvider("gpu"), cpu: makeProvider("cpu") },
+  });
+
+  expect(handles.chat("model", [], [])).toBe("gpu-gen-1");
+});
+
+test("chat prefers cpu over remote", () => {
+  const handles = setup({
+    providers: { cpu: makeProvider("cpu"), remote: makeProvider("remote") },
+  });
+
+  expect(handles.chat("model", [], [])).toBe("cpu-gen-1");
+});
+
+test("chat falls back to remote", () => {
+  const handles = setup({ providers: { remote: makeProvider("remote") } });
+
+  expect(handles.chat("model", [], [])).toBe("remote-gen-1");
+});
+
+test("tools are exposed under the corm__<tooling>__<tool> name", () => {
+  const handles = setup({
+    providers: { cpu: makeProvider("cpu") },
+    toolings: { filesystem: makeTooling("filesystem", ["read", "write"]) },
+  });
+
+  expect(handles.tools().map((tool) => tool.name)).toEqual([
+    "corm__filesystem__read",
+    "corm__filesystem__write",
+  ]);
+});
+
+test("only the toolings named in the config are probed", () => {
+  const handles = setup(
+    {
+      providers: { gpu: makeProvider("gpu") },
       toolings: {
-        git: makeToolingHandle("git", ["git_add"]),
-        filesystem: makeToolingHandle("filesystem", ["read"]),
+        filesystem: makeTooling("filesystem", ["read"]),
+        git: makeTooling("git", ["status"]),
       },
-    }),
+    },
+    { toolings: ["filesystem"] },
   );
 
-  expect(
-    manager
-      .load()
-      .toolings()
-      .map((tooling) => tooling.name),
-  ).toEqual(["git", "filesystem"]);
+  expect(handles.tooling("filesystem")).toBeDefined();
+  expect(handles.tooling("git")).toBeUndefined();
 });
 
-test("subscribes fresh when no subscription is stored", () => {
-  const fake = makeHost();
-  const manager = createCormHandlesManager(
-    makeOmw({ providers: { cpu: makeProvider("cpu") }, host: fake.host }),
-  );
+test("tooling returns undefined when the named tooling is absent", () => {
+  const handles = setup({ providers: { gpu: makeProvider("gpu") } });
 
-  const subscriptions = manager.load().subscriptions();
+  expect(handles.tooling("filesystem")).toBeUndefined();
+});
 
-  expect(subscriptions).toEqual({
-    lifecycle: "lifecycle-sub",
-    endpoint: "endpoint-sub-corm",
-    model: "corm",
+test("internal toolings are always probed but hidden from the model", () => {
+  const handles = setup({
+    providers: { gpu: makeProvider("gpu") },
+    toolings: {
+      "internal-filesystem": makeTooling("internal-filesystem", [
+        "read_text_file",
+      ]),
+      filesystem: makeTooling("filesystem", ["read"]),
+    },
   });
-  expect(fake.counters.lifecycle).toBe(1);
-  expect(fake.subscribedEndpoints).toEqual(["corm"]);
-  expect(fake.memory.has(cormSubscriptionsKey)).toBe(true);
+
+  expect(handles.tooling("internal-filesystem")).toBeDefined();
+  expect(handles.tools().map((tool) => tool.name)).toEqual([
+    "corm__filesystem__read",
+  ]);
 });
 
-test("reuses a stored subscription for the same model", () => {
-  const fake = makeHost();
-  fake.memory.set(
-    cormSubscriptionsKey,
-    JSON.stringify({ lifecycle: "l", endpoint: "e", model: "corm" }),
+test("internal toolings are probed even with no configured toolings", () => {
+  const handles = setup(
+    {
+      providers: { gpu: makeProvider("gpu") },
+      toolings: {
+        "internal-filesystem": makeTooling("internal-filesystem", ["read"]),
+      },
+    },
+    { toolings: [] },
   );
 
-  const manager = createCormHandlesManager(
-    makeOmw({ providers: { cpu: makeProvider("cpu") }, host: fake.host }),
-  );
+  expect(handles.tooling("internal-filesystem")).toBeDefined();
+  expect(handles.tools()).toEqual([]);
+});
 
-  expect(manager.load().subscriptions()).toEqual({
-    lifecycle: "l",
-    endpoint: "e",
-    model: "corm",
+test("call strips the corm__ prefix and delegates to the owning tooling", () => {
+  const invoked: { tool: string; args: unknown }[] = [];
+  const filesystem = {
+    ...makeTooling("filesystem", ["echo"]),
+    callTool: (tool: string, args: unknown) => {
+      invoked.push({ tool, args });
+      return "uuid";
+    },
+  } as unknown as ToolingHandle;
+
+  const handles = setup({
+    providers: { cpu: makeProvider("cpu") },
+    toolings: { filesystem },
   });
-  expect(fake.counters.lifecycle).toBe(0);
-  expect(fake.subscribedEndpoints).toEqual([]);
+
+  handles.call("corm__filesystem__echo", '{"in":"hi"}');
+
+  expect(invoked).toEqual([{ tool: "echo", args: '{"in":"hi"}' }]);
 });
 
-test("resubscribes when the stored model no longer matches", () => {
-  const fake = makeHost();
-  fake.memory.set(
-    cormSubscriptionsKey,
-    JSON.stringify({ lifecycle: "l", endpoint: "old", model: "other" }),
-  );
+test("cancel closes the open generation on the owning provider", () => {
+  const cancelled: string[] = [];
+  const gpu = {
+    ...makeProvider("gpu"),
+    isOpen: (id: string) => id === "gen-1",
+    cancel: (id: string) => {
+      cancelled.push(id);
+    },
+  } as unknown as ProviderHandle;
 
-  const manager = createCormHandlesManager(
-    makeOmw({ providers: { cpu: makeProvider("cpu") }, host: fake.host }),
-  );
+  const handles = setup({ providers: { gpu } });
+  handles.cancel("gen-1");
 
-  expect(manager.load().subscriptions().model).toBe("corm");
-  expect(fake.unsubscribedEndpoints).toEqual(["old"]);
-  expect(fake.subscribedEndpoints).toEqual(["corm"]);
-});
-
-test("release persists subscriptions on reload", () => {
-  const fake = makeHost();
-  const manager = createCormHandlesManager(
-    makeOmw({ providers: { cpu: makeProvider("cpu") }, host: fake.host }),
-  );
-
-  manager.load();
-  manager.release({ id: "r", kind: "reload", payload: null });
-
-  expect(fake.memory.get(cormSubscriptionsKey)).toContain('"model":"corm"');
+  expect(cancelled).toEqual(["gen-1"]);
 });

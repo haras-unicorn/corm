@@ -1,3 +1,5 @@
+# Baseline happy path: an endpoint message produces one streamed provider call
+# and finishes. The model name resolves from the scaffolded config.
 [endpoint]
 requests = [
   { model = "corm", session_id = "corm", messages = [
@@ -9,7 +11,7 @@ requests = [
 turns = [{ content = "hi" }]
 
 [memory.corm]
-"corm-state" = "{}"
+corm_state = {}
 
 [assertions.corm]
 outcome = "asserted"

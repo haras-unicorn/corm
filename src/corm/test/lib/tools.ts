@@ -1,5 +1,47 @@
-import { contentText, toolResultText } from "corm/lib/tools";
+import {
+  contentText,
+  cormTools,
+  mergeToolArguments,
+  mergeToolCalls,
+  toolResultText,
+} from "corm/lib/tools";
 import { expect, test } from "vitest";
+import { baseConfig } from "../common";
+
+const tool = (name: string): ChatTool => ({ name }) as ChatTool;
+
+test("cormTools drops the always-disabled tools", () => {
+  const tools = [
+    tool("corm__git__git_status"),
+    tool("corm__filesystem__read_file"),
+  ];
+
+  expect(cormTools(tools, baseConfig()).map((entry) => entry.name)).toEqual([
+    "corm__git__git_status",
+  ]);
+});
+
+test("cormTools restricts to the configured subset", () => {
+  const tools = [
+    tool("corm__git__git_status"),
+    tool("corm__filesystem__list_directory"),
+  ];
+
+  expect(
+    cormTools(tools, baseConfig({ tools: ["git__git_status"] })).map(
+      (entry) => entry.name,
+    ),
+  ).toEqual(["corm__git__git_status"]);
+});
+
+test("cormTools exposes everything when the subset is absent", () => {
+  const tools = [
+    tool("corm__git__git_status"),
+    tool("corm__filesystem__list_directory"),
+  ];
+
+  expect(cormTools(tools, baseConfig())).toHaveLength(2);
+});
 
 const result = (content: unknown, structuredContent?: unknown): ToolResult => ({
   name: "read_text_file",
@@ -58,4 +100,39 @@ test("toolResultText prefers structured content", () => {
 
 test("toolResultText falls back to JSON", () => {
   expect(toolResultText(result({ answer: 42 }))).toBe('{"answer":42}');
+});
+
+test("mergeToolArguments extends overlapping cumulative fragments", () => {
+  expect(mergeToolArguments('{"a":', '{"a":1}')).toBe('{"a":1}');
+  expect(mergeToolArguments('{"a":', "1}")).toBe('{"a":1}');
+});
+
+test("mergeToolArguments replaces non-string arguments", () => {
+  expect(mergeToolArguments({ a: 1 }, { b: 2 })).toEqual({ b: 2 });
+});
+
+test("mergeToolCalls merges arguments of the same call", () => {
+  const merged = mergeToolCalls(
+    { id: "1", name: "t", arguments: '{"a":' },
+    { id: "1", name: "t", arguments: '{"a":1}' },
+  );
+
+  expect(merged).toEqual({ id: "1", name: "t", arguments: '{"a":1}' });
+});
+
+test("mergeToolCalls throws when mixing different calls", () => {
+  expect(() =>
+    mergeToolCalls(
+      { id: "1", name: "t", arguments: "{}" },
+      { id: "2", name: "u", arguments: "{}" },
+    ),
+  ).toThrow();
+});
+
+test("mergeToolCalls falls back to whichever side is present", () => {
+  const call = { id: "1", name: "t", arguments: "{}" };
+
+  expect(mergeToolCalls(undefined, call)).toEqual(call);
+  expect(mergeToolCalls(call, undefined)).toEqual(call);
+  expect(mergeToolCalls(undefined, undefined)).toBeUndefined();
 });

@@ -1,0 +1,51 @@
+# The circuit-breaker count is scoped to the current user turn: a new endpoint
+# message resets it, so a call that legitimately repeats across turns does not
+# trip.
+#
+# Crucial: the same `echo` call in the second session's turn does not produce the
+# breaker hint; the next provider call carries the two plain tool results.
+[endpoint]
+requests = [
+  { model = "corm", session_id = "corm", messages = [
+    { content = "go" },
+  ] },
+  { model = "corm", session_id = "corm2", messages = [
+    { content = "go" },
+    { content = "next" },
+  ] },
+]
+
+[providers.gpu]
+turns = [
+  { tool_call = { id = "call-1", name = "corm__filesystem__echo", arguments = '{"input":"hi"}' } },
+  { content = "one" },
+  { tool_call = { id = "call-2", name = "corm__filesystem__echo", arguments = '{"input":"hi"}' } },
+  { content = "two" },
+]
+
+[memory.corm]
+corm_config = { circuitBreakerLimit = 2 }
+corm_state = {}
+
+[tooling.filesystem]
+tools = [{ name = "echo", description = "echo back", input_schema = {} }]
+tool_calls = [
+  { name = "echo", result = "hi" },
+  { name = "echo", result = "hi" },
+]
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "call", op = "chat_stream" },
+  { kind = "call", op = "call_tool" },
+  { kind = "inbound", event = "tool-result" },
+  { kind = "call", op = "chat_stream" },
+  { kind = "call", op = "chat_stream" },
+  { kind = "call", op = "call_tool" },
+  { kind = "inbound", event = "tool-result" },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "tool" },
+    { role = "tool" },
+  ] } },
+]

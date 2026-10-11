@@ -302,6 +302,32 @@ _Default:_
 config.corm.endpoint.enable
 ```
 
+## corm\.endpoint\.client\.infoLines
+
+How many trailing lines of the session dump to print to the terminal when the
+client starts\.
+
+_Type:_ positive integer, meaning >0
+
+_Default:_
+
+```nix
+10000
+```
+
+## corm\.endpoint\.client\.sessionMessages
+
+How many recent messages to keep in the aichat session file before the client
+starts\.
+
+_Type:_ positive integer, meaning >0
+
+_Default:_
+
+```nix
+128
+```
+
 ## corm\.endpoint\.host
 
 Host to listen on
@@ -798,6 +824,26 @@ _Default:_
 
 ```nix
 null
+```
+
+## corm\.omw\.mcpServers
+
+The MCP servers (toolings) to expose to the brain\.
+
+_Type:_ list of string
+
+_Default:_
+
+```nix
+[
+  "nixos"
+  "nix"
+  "git"
+  "github"
+  "rss"
+  "plan"
+  "filesystem"
+]
 ```
 
 ## corm\.omw\.memory

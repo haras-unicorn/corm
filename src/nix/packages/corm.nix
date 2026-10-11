@@ -7,7 +7,7 @@
       pkgs = final;
       lib = pkgs.lib;
 
-      pnpmDepsHash = "sha256-XGgPxmeJTp2jFzvwuuK/AKpTUUZpk4r2QZ1c14+NvvA=";
+      pnpmDepsHash = "sha256-rO9jtRBxjV9eoG78+gu6clURxIsfB6lQq50JrWTQF8Y=";
 
       flake-root = pkgs.writeShellApplication {
         name = "flake-root";

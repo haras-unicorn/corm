@@ -1,3 +1,5 @@
+# Reasoning and usage deltas are streamed straight to the endpoint, and the
+# usage is used to anchor the window's token estimate.
 [endpoint]
 requests = [
   { model = "corm", session_id = "corm", messages = [
@@ -11,7 +13,7 @@ turns = [
 ]
 
 [memory.corm]
-"corm-state" = "{}"
+corm_state = {}
 
 [assertions.corm]
 outcome = "asserted"

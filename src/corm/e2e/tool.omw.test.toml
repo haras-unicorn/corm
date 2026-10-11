@@ -1,3 +1,8 @@
+# The async MCP tool loop: a structured `corm__*` call is executed through the
+# tooling layer, its result is fed back, and the model is re-prompted.
+#
+# Crucial: `call_tool` then `tool-result` then a second `chat_stream` carrying the
+# tool message -- never a blocking call.
 [endpoint]
 requests = [
   { model = "corm", session_id = "corm", messages = [
@@ -12,7 +17,7 @@ turns = [
 ]
 
 [memory.corm]
-"corm-state" = "{}"
+corm_state = {}
 
 [tooling.filesystem]
 tools = [{ name = "echo", description = "echo back", input_schema = {} }]
