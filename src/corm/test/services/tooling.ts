@@ -1,4 +1,5 @@
-import { cormToolPrefix, createCormTooling } from "corm/services/tooling";
+import { cormToolPrefix } from "corm/lib/keys";
+import { createCormTooling } from "corm/services/tooling";
 import { expect, test } from "vitest";
 import {
   makeHandles,
