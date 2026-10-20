@@ -57,6 +57,13 @@ export const CORM_DEFAULT_TRUNCATION_HINT = oneLine(`
   applicable.
 `);
 
+export const CORM_DEFAULT_FIXED_OUTPUT_TRUNCATION_HINT = oneLine(`
+  This message was truncated because it exceeded the message token limit;
+  its middle was replaced. This tool's output size is not controlled by its
+  arguments, so retrying it will not produce a shorter result; use the
+  visible head and tail.
+`);
+
 export const CORM_DEFAULT_TRUNCATION_MARKER = "<truncated>";
 
 export const CORM_DEFAULT_RECAP_NOTICE = oneLine(`
@@ -118,3 +125,46 @@ export const CORM_DEFAULT_CHARS_PER_TOKEN = 4;
 export const CORM_DEFAULT_MESSAGE_OVERHEAD_TOKENS = 4;
 
 export const CORM_DEFAULT_COMPACT_PARAMS: Record<string, unknown> = {};
+
+export const CORM_DEFAULT_DIGEST_START_NOTICE = oneLine(`
+  You are starting the daily digest job.
+`);
+
+export const CORM_DEFAULT_DIGEST_RESUME_NOTICE = oneLine(`
+  You are resuming the daily digest job after compacting your context.
+`);
+
+export const CORM_DEFAULT_DIGEST_QUEUED_NOTICE = oneLine(`
+  The daily digest job was queued because you were busy; it will start when the
+  current job finishes.
+`);
+
+export const CORM_DEFAULT_ENDPOINT_QUEUED_NOTICE = oneLine(`
+  An endpoint message arrived while you were busy; it will be answered when the
+  current job finishes.
+`);
+
+export const CORM_DEFAULT_ENDPOINT_RECAP_NOTICE = oneLine(`
+  You got a message from the endpoint. The following is a recap of the earlier
+  context that was compacted, so you can answer it.
+`);
+
+export const CORM_DEFAULT_DIGEST_PROMPT = oneLine(`
+  Poll the configured RSS/Atom feeds and summarize what is new since the
+  previous digest.
+
+  Feeds: {{FEEDS}}
+
+  Call corm__rss__get_articles with time_from="{{SINCE}}" (ISO 8601) to fetch
+  articles published since the previous digest. Read the important ones with
+  corm__rss__fetch_article, then write a concise digest grouped by feed, with
+  titles and links. Do not repeat items that were already covered. The current
+  time is {{NOW}}. Store the digest in long-term memory if such a tool is
+  available.
+`);
+
+export const CORM_DEFAULT_DIGEST_LOOKBACK_MS = 24 * 60 * 60 * 1000;
+
+export const CORM_DEFAULT_DIGEST_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+export const CORM_DEFAULT_DIGEST_MIN_GAP_MS = 12 * 60 * 60 * 1000;

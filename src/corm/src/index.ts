@@ -5,6 +5,7 @@ import { createDispatcher } from "./services/dispatch";
 import { createCormHandlesManager } from "./services/handles";
 import { createCormLogger } from "./services/logger";
 import { createCormStateManager } from "./services/state";
+import type { CormAction } from "./types/action";
 import type { CormOmw, CormOmwEvent } from "./types/omw";
 
 const globalOmw = omw as CormOmw;
@@ -17,10 +18,17 @@ const handles = createCormHandlesManager(globalOmw, config, logger).load();
 const stateManager = createCormStateManager(logger, handles, config);
 const state = stateManager.load();
 
+// The dispatcher's constructor arms the digest or parks a catch-up run for the
+// next safe point.
 const dispatcher = createDispatcher(logger, handles, config, state);
 
-const dispatch = (event: CormOmwEvent): void => {
-  for (const effect of reduce(event, state, config)) {
+const dispatch = (event: CormAction): void => {
+  for (const effect of reduce(
+    event,
+    state,
+    config,
+    globalOmw.host.timeNow(),
+  )) {
     try {
       dispatcher.dispatch(effect);
     } catch (error) {
@@ -30,28 +38,29 @@ const dispatch = (event: CormOmwEvent): void => {
   }
 };
 
-// Drain the inbox once the machine is idle: only one generation (and one window
-// writer) may run at a time, so requests that arrived mid-turn are answered in
-// order here.
-const drain = (): void => {
-  while (
-    state.disk.inbox.length > 0 &&
-    isTurnIdling(state) &&
-    !hasAwaitingTools(state)
-  ) {
-    const queued = state.disk.inbox.shift();
-    if (queued === undefined) {
-      break;
-    }
+// One step of the machine: answer the next inbox message, otherwise start a
+// parked digest, otherwise stay idle. Called at startup and after every event,
+// so a finished turn immediately picks up whatever is waiting.
+const pump = (): void => {
+  if (!isTurnIdling(state) || hasAwaitingTools(state)) {
+    return;
+  }
 
+  const queued = state.disk.inbox.shift();
+  if (queued !== undefined) {
     logger.debug(
-      `draining queued endpoint request ${queued.event.payload.session}`,
+      `pumping queued endpoint request ${queued.event.payload.session}`,
     );
     dispatch(queued.event);
+    return;
   }
+
+  dispatcher.startPendingDigest();
 };
 
 logger.info("corm ready");
+
+pump();
 
 while (true) {
   let event: CormOmwEvent | null = null;
@@ -83,7 +92,7 @@ while (true) {
   }
 
   dispatch(event);
-  drain();
+  pump();
 }
 
 logger.info("corm stopped");

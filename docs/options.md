@@ -945,7 +945,7 @@ _Type:_ string
 _Default:_
 
 ```nix
-"deepseek/deepseek-v4.1-flash"
+"deepseek/deepseek-v4.1-flash-1017"
 ```
 
 ## corm\.settings

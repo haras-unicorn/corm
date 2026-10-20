@@ -21,7 +21,7 @@ test("approves a whole endpoint-message sequence in order", () => {
       kind: "set-active-request",
       session: "s1",
       params: undefined,
-      clientTools: [],
+      droppedClientTools: [],
     },
     { kind: "append-inbound-messages", messages: [] },
     { kind: "start-chat-generation" },

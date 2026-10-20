@@ -1,11 +1,12 @@
 import { matchTaggedUnionExhaustively } from "corm/types/fns";
 import type { CormReducer } from "../types/reducer";
 import { chatReducer } from "./chat";
+import { digestReducer } from "./digest";
 import { dropped } from "./dropped";
 import { endpointReducer } from "./endpoint";
 import { toolReducer } from "./tool";
 
-export const reduce: CormReducer = (action, state, config) =>
+export const reduce: CormReducer = (action, state, config, now = 0) =>
   matchTaggedUnionExhaustively("kind", action, {
     "endpoint-message": (event) => endpointReducer(event, state, config),
     "endpoint-session-end": (event) => endpointReducer(event, state, config),
@@ -15,7 +16,7 @@ export const reduce: CormReducer = (action, state, config) =>
       state.disk.turn.awaiting[event.id] !== undefined
         ? toolReducer(event, state, config)
         : chatReducer(event, state, config),
-    timer: (event) => chatReducer(event, state, config),
+    timer: (event) => digestReducer(event, state, config, now),
     "tool-result": (event) => toolReducer(event, state, config),
     message: (event) => dropped(event, state, config),
     reload: (event) => dropped(event, state, config),

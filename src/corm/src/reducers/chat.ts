@@ -5,6 +5,7 @@ import {
 } from "../effects/generation";
 import {
   CORM_DEFAULT_COMPACT_NOTICE,
+  CORM_DEFAULT_DIGEST_RESUME_NOTICE,
   CORM_DEFAULT_TOOL_CALL_HINT,
   CORM_DEFAULT_TOOL_CALL_PATTERN,
   CORM_DEFAULT_TOOL_CALL_RETRY_LIMIT,
@@ -104,12 +105,60 @@ const onChatEnd = (
   }
 
   if (isGenerationCompacting(state)) {
-    return state.disk.turn.resume
+    const flush = state.disk.notices.length > 0;
+
+    if (!state.disk.turn.resume) {
+      return flush
+        ? approveEffects(
+            state,
+            action,
+            { kind: "commit-compaction" },
+            { kind: "clear-generation" },
+            { kind: "flush-notices" },
+          )
+        : approveEffects(
+            state,
+            action,
+            { kind: "commit-compaction" },
+            { kind: "clear-generation" },
+          );
+    }
+
+    const resume = {
+      kind: "append-runtime-message",
+      content: config.digestResumeNotice ?? CORM_DEFAULT_DIGEST_RESUME_NOTICE,
+    } as const;
+
+    if (state.disk.turn.digest && flush) {
+      return approveEffects(
+        state,
+        action,
+        { kind: "commit-compaction" },
+        { kind: "clear-generation" },
+        resume,
+        { kind: "flush-notices" },
+        { kind: "start-chat-generation" },
+      );
+    }
+
+    if (state.disk.turn.digest) {
+      return approveEffects(
+        state,
+        action,
+        { kind: "commit-compaction" },
+        { kind: "clear-generation" },
+        resume,
+        { kind: "start-chat-generation" },
+      );
+    }
+
+    return flush
       ? approveEffects(
           state,
           action,
           { kind: "commit-compaction" },
           { kind: "clear-generation" },
+          { kind: "flush-notices" },
           { kind: "start-chat-generation" },
         )
       : approveEffects(
@@ -117,27 +166,77 @@ const onChatEnd = (
           action,
           { kind: "commit-compaction" },
           { kind: "clear-generation" },
+          { kind: "start-chat-generation" },
         );
   }
 
   const live = liveAssistant(state.disk.window);
-  const toolCall = live?.toolCall;
+  const toolCalls = live?.toolCalls ?? [];
 
-  if (toolCall !== undefined && ownsTool(state.disk.window, toolCall.name)) {
-    return approveEffects(state, action, {
-      kind: "invoke-corm-tool",
-      name: toolCall.name,
-      arguments: toolCall.arguments,
-    });
-  }
+  if (toolCalls.length > 0) {
+    // corm only ever runs its own tools. A call is never handed back to the
+    // client (that would let a second driver write the shared window and rewrite
+    // the cached prefix), so a call the model made that corm does not offer is
+    // answered with an error tool message, giving the model a bounded chance to
+    // recover.
+    const owned = toolCalls.flatMap((call, order) =>
+      ownsTool(state.disk.window, call.name)
+        ? [
+            {
+              name: call.name,
+              arguments: call.arguments,
+              toolCallId: call.id,
+              order,
+            },
+          ]
+        : [],
+    );
+    const rejected = toolCalls.flatMap((call, order) =>
+      ownsTool(state.disk.window, call.name)
+        ? []
+        : [
+            {
+              name: call.name,
+              arguments: call.arguments,
+              toolCallId: call.id,
+              order,
+            },
+          ],
+    );
+    const retryLimit =
+      config.toolCallRetryLimit ?? CORM_DEFAULT_TOOL_CALL_RETRY_LIMIT;
+    const recover = state.disk.turn.toolCallRetries < retryLimit;
 
-  if (toolCall !== undefined) {
+    if (owned.length > 0) {
+      return approveEffects(state, action, {
+        kind: "invoke-corm-tools",
+        calls: owned,
+        rejected,
+      });
+    }
+
+    if (recover) {
+      return state.disk.notices.length > 0
+        ? approveEffects(
+            state,
+            action,
+            { kind: "invoke-corm-tools", calls: [], rejected },
+            { kind: "flush-notices" },
+            { kind: "start-chat-generation" },
+          )
+        : approveEffects(
+            state,
+            action,
+            { kind: "invoke-corm-tools", calls: [], rejected },
+            { kind: "start-chat-generation" },
+          );
+    }
+
     return approveEffects(
       state,
       action,
-      { kind: "forward-client-tool-call", toolCall },
-      { kind: "stream-endpoint-delta", delta: { finishReason: "tool_calls" } },
-      { kind: "clear-generation" },
+      { kind: "invoke-corm-tools", calls: [], rejected },
+      { kind: "stream-endpoint-delta", delta: { finishReason: "stop" } },
     );
   }
 
@@ -145,38 +244,122 @@ const onChatEnd = (
   const retryLimit =
     config.toolCallRetryLimit ?? CORM_DEFAULT_TOOL_CALL_RETRY_LIMIT;
 
+  const flush = state.disk.notices.length > 0;
+
   if (
     isTextToolCall(live?.content ?? "", live?.reasoning ?? "", pattern) &&
     state.disk.turn.toolCallRetries < retryLimit
   ) {
-    return approveEffects(
-      state,
-      action,
-      {
-        kind: "retry-text-tool-call",
-        hint: config.toolCallHint ?? CORM_DEFAULT_TOOL_CALL_HINT,
-      },
-      { kind: "clear-generation" },
-      { kind: "start-chat-generation" },
-    );
+    const retry = {
+      kind: "retry-text-tool-call",
+      hint: config.toolCallHint ?? CORM_DEFAULT_TOOL_CALL_HINT,
+    } as const;
+
+    return flush
+      ? approveEffects(
+          state,
+          action,
+          retry,
+          { kind: "clear-generation" },
+          { kind: "flush-notices" },
+          { kind: "start-chat-generation" },
+        )
+      : approveEffects(
+          state,
+          action,
+          retry,
+          { kind: "clear-generation" },
+          { kind: "start-chat-generation" },
+        );
   }
 
+  const finish = {
+    kind: "stream-endpoint-delta",
+    delta: { finishReason: "stop" },
+  } as const;
+  const digest = state.disk.turn.digest;
+  const digestAt = state.disk.turn.digestSince;
+  const commit =
+    digest && digestAt !== undefined
+      ? ({ kind: "commit-digest", at: digestAt } as const)
+      : undefined;
+  const arm = digest ? ({ kind: "arm-digest-timer" } as const) : undefined;
+
   if (overSoft(state.disk.window, config)) {
+    // Commit the digest before housekeeping compaction evicts its answer; the
+    // compaction completion flushes pending notices.
+    if (commit !== undefined && arm !== undefined) {
+      return approveEffects(
+        state,
+        action,
+        finish,
+        commit,
+        arm,
+        { kind: "clear-generation" },
+        { kind: "start-compaction-generation", resume: false },
+      );
+    }
+
+    if (arm !== undefined) {
+      return approveEffects(
+        state,
+        action,
+        finish,
+        arm,
+        { kind: "clear-generation" },
+        { kind: "start-compaction-generation", resume: false },
+      );
+    }
+
     return approveEffects(
       state,
       action,
-      { kind: "stream-endpoint-delta", delta: { finishReason: "stop" } },
+      finish,
       { kind: "clear-generation" },
       { kind: "start-compaction-generation", resume: false },
     );
   }
 
-  return approveEffects(
-    state,
-    action,
-    { kind: "stream-endpoint-delta", delta: { finishReason: "stop" } },
-    { kind: "clear-generation" },
-  );
+  if (commit !== undefined && arm !== undefined) {
+    return flush
+      ? approveEffects(
+          state,
+          action,
+          finish,
+          commit,
+          arm,
+          { kind: "flush-notices" },
+          { kind: "clear-generation" },
+        )
+      : approveEffects(state, action, finish, commit, arm, {
+          kind: "clear-generation",
+        });
+  }
+
+  if (arm !== undefined) {
+    return flush
+      ? approveEffects(
+          state,
+          action,
+          finish,
+          arm,
+          { kind: "flush-notices" },
+          { kind: "clear-generation" },
+        )
+      : approveEffects(state, action, finish, arm, {
+          kind: "clear-generation",
+        });
+  }
+
+  return flush
+    ? approveEffects(
+        state,
+        action,
+        finish,
+        { kind: "flush-notices" },
+        { kind: "clear-generation" },
+      )
+    : approveEffects(state, action, finish, { kind: "clear-generation" });
 };
 
 const onError = (
@@ -197,6 +380,18 @@ const onError = (
       action,
       { kind: "cancel-generation" },
       { kind: "start-compaction-generation", resume: state.disk.turn.resume },
+    );
+  }
+
+  // A failed digest is not treated as done: re-arm the schedule without
+  // advancing `digest.last`, so the next run covers the missed window.
+  if (state.disk.turn.digest) {
+    return approveEffects(
+      state,
+      action,
+      { kind: "stream-endpoint-delta", delta: { finishReason: "stop" } },
+      { kind: "arm-digest-timer" },
+      { kind: "clear-generation" },
     );
   }
 

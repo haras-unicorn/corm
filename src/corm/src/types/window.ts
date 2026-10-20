@@ -17,7 +17,6 @@ export const cormWindowZod = z.compile(
     summary: z.string().default(""),
     active: z.array(cormNonSystemMessageZod).default([]),
     tools: z.array(z.custom<CormOmwTool>()).default([]),
-    clientTools: z.array(z.custom<CormOmwTool>()).default([]),
     session: z.string().default(""),
     params: z.unknown().optional(),
     // The provider's reported prompt size for the last turn, used to anchor the

@@ -72,7 +72,7 @@ events = [
   ] } },
   { kind = "call", op = "chat_stream", detail = { messages = [
     { role = "user", content = "^⟦runtime⟧\\n\\nresume 2$" },
-    { role = "user", content = "^⟦client⟧\\n\\np7$" },
+    { role = "user", content = "^⟦client⟧\\n\\np11$" },
     { role = "user", content = "^⟦runtime⟧\\n\\nend of replay$" },
     { role = "user", content = "^⟦client⟧\\n\\nmore$" },
   ] } },

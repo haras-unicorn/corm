@@ -1,9 +1,7 @@
-import { systemMessage } from "corm/lib/messages";
 import type { CormHandles } from "corm/services/handles";
 import type { CormConfig } from "corm/types/config";
 import type { CormOmw } from "corm/types/omw";
-import type { CormState } from "corm/types/state";
-import { defaultTurn } from "corm/types/turn";
+import { type CormState, defaultDisk } from "corm/types/state";
 
 export const baseConfig = (
   overrides: Partial<CormConfig> = {},
@@ -30,8 +28,20 @@ export const makeHost = (overrides: Partial<Host> = {}): FakeHost => {
   const streamed: { session: string; delta: ChatDelta }[] = [];
   const subscribedEndpoints: string[] = [];
   const counters: FakeHostCounters = { lifecycle: 0 };
+  let uuids = 0;
+  const now = 1_000_000;
 
   const host = {
+    timeNow: () => now,
+    timeFormat: () => "",
+    waitCron: (spec: string) => `timer-${spec}`,
+    waitFor: (ms: number) => `timer-${ms}`,
+    waitUntil: (ts: number) => `timer-${ts}`,
+    cancelTimer: () => {},
+    newUuid: () => {
+      uuids += 1;
+      return `uuid-${uuids}`;
+    },
     log: () => {},
     whoami: () => "corm",
     memoryGet: (key: string) => memory.get(key),
@@ -188,23 +198,7 @@ export const makeState = (config: CormConfig = baseConfig()): CormState => ({
       generation: undefined,
     },
   },
-  disk: {
-    inbox: [],
-    window: {
-      system: systemMessage("system", config),
-      summary: "",
-      active: [],
-      tools: [],
-      clientTools: [],
-      session: "",
-      params: undefined,
-      tokens: 0,
-      chars: 0,
-    },
-    turn: defaultTurn(),
-    receipts: [],
-    task: 0,
-  },
+  disk: defaultDisk(config, []),
 });
 
 export const endpointMessage = (
@@ -239,5 +233,6 @@ export const toolResultEvent = (
     name: "echo",
     arguments: {},
     content: [{ type: "text", text }],
+    isError: false,
   },
 });

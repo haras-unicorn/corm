@@ -24,7 +24,7 @@ export const cormAssistantMessageZod = cormMessageZod.safeExtend({
   deltas: z.array(z.custom<CormOmwChatDelta>()).default([]),
   content: z.string().default(""),
   reasoning: z.string().optional(),
-  toolCall: z.custom<CormOmwToolCall>().optional(),
+  toolCalls: z.array(z.custom<CormOmwToolCall>()).default([]),
 });
 
 export type CormAssistantMessage = z.infer<typeof cormAssistantMessageZod>;
@@ -41,6 +41,7 @@ export const cormToolMessageZod = cormMessageZod.safeExtend({
   message: z.custom<CormOmwChatMessage & { role: "tool" }>(),
   role: z.literal("tool"),
   content: z.string().default(""),
+  toolCallId: z.string().optional(),
 });
 
 export interface CormToolMessage extends z.infer<typeof cormToolMessageZod> {}

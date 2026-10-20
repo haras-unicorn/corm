@@ -14,6 +14,7 @@ import {
   CORM_DEFAULT_COMPACT_SUMMARY_LIMIT,
   CORM_DEFAULT_COMPACT_THRESHOLD,
   CORM_DEFAULT_COMPACTION_RECEIPTS,
+  CORM_DEFAULT_FIXED_OUTPUT_TRUNCATION_HINT,
   CORM_DEFAULT_HARD_THRESHOLD,
   CORM_DEFAULT_MESSAGE_OVERHEAD_TOKENS,
   CORM_DEFAULT_MESSAGE_TOKEN_LIMIT,
@@ -38,7 +39,7 @@ import {
   estimateTokenChars,
   truncateContent,
 } from "./tokens";
-import { toolResultText } from "./tools";
+import { bareToolName, cormFixedOutputTools, toolResultText } from "./tools";
 
 // The raw body of a message, truncated to `messageTokenLimit` with the head and
 // tail kept around `truncationMarker`. Returns whether the body was cut so a
@@ -63,10 +64,14 @@ const limitBody = (
 
 export const truncationHintMessage = (
   config: CormConfig,
+  fixedOutput = false,
 ): CormNonSystemMessage =>
   userMessage(
     "runtime",
-    config.truncationHint ?? CORM_DEFAULT_TRUNCATION_HINT,
+    fixedOutput
+      ? (config.fixedOutputTruncationHint ??
+          CORM_DEFAULT_FIXED_OUTPUT_TRUNCATION_HINT)
+      : (config.truncationHint ?? CORM_DEFAULT_TRUNCATION_HINT),
     config,
   );
 
@@ -81,11 +86,11 @@ export const toNonSystem = (
       return assistantMessage(
         message.content ?? "",
         message.reasoning,
-        message.toolCall,
+        message.toolCalls ?? [],
         config,
       );
     case "tool":
-      return toolMessage(message.content ?? "", config);
+      return toolMessage(message.content ?? "", message.toolCallId, config);
     default:
       return userMessage("client", message.content ?? "", config);
   }
@@ -127,11 +132,9 @@ export const setActiveRequest = (
   window: CormWindow,
   session: string,
   params: unknown,
-  clientTools: CormWindow["clientTools"],
 ): void => {
   window.session = session;
   window.params = params;
-  window.clientTools = clientTools;
 };
 
 // Frame and truncate one offered message. Only the user- and tool-role bodies
@@ -232,13 +235,28 @@ export const dropLastExchange = (window: CormWindow): boolean => {
 export const appendToolResult = (
   window: CormWindow,
   result: ToolResult,
+  toolCallId: string | undefined,
   config: CormConfig,
+  name = result.name,
 ): void => {
-  const body = limitBody(toolResultText(result), config);
+  const bare = bareToolName(name);
+  const text = toolResultText(result);
+  const content = result.isError
+    ? `Tool error (${name}${toolCallId ? ` #${toolCallId}` : ""}): ${text}`
+    : text;
 
-  window.active.push(toolMessage(body.content, config));
+  const noTruncate = (config.noTruncateTools ?? cormFixedOutputTools).includes(
+    bare,
+  );
+  const body = noTruncate
+    ? { content, truncated: false }
+    : limitBody(content, config);
+
+  window.active.push(toolMessage(body.content, toolCallId, config));
   if (body.truncated) {
-    window.active.push(truncationHintMessage(config));
+    window.active.push(
+      truncationHintMessage(config, cormFixedOutputTools.includes(bare)),
+    );
   }
 
   recount(window, config);

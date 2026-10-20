@@ -1,15 +1,25 @@
-# A tool call the tooling layer does not own is a client tool: it is forwarded to
-# the endpoint for the client to execute, never run by corm.
+# A client's own tools are dropped: offering them to the model would make the
+# request depend on the client and break the shared, cacheable prefix. corm only
+# ever offers (and runs) its own tools, and warns about the drop.
+#
+# Crucial: the endpoint offers `client__thing`, yet the provider is never asked to
+# execute it (there is no `call_tool`) and the model's call to it is answered with
+# an error `tool` message, so the turn stays corm-driven.
 [endpoint]
 requests = [
   { model = "corm", session_id = "corm", messages = [
     { content = "use a client tool" },
+  ], tools = [
+    { name = "client__thing", description = "a client tool", input_schema = {} },
   ] },
 ]
 
 [providers.gpu]
 turns = [
-  { tool_call = { id = "call-1", name = "client__thing", arguments = "{}" } },
+  { tool_calls = [
+    { id = "call-1", name = "client__thing", arguments = "{}" },
+  ] },
+  { content = "done" },
 ]
 
 [memory.corm]
@@ -20,6 +30,8 @@ outcome = "asserted"
 events = [
   { kind = "inbound", event = "endpoint-message" },
   { kind = "call", op = "chat_stream" },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "tool", content = '^Tool error \(client__thing #call-1\):' },
+  ] } },
   { kind = "inbound", event = "chat-end" },
-  { kind = "call", op = "stream_endpoint" },
 ]

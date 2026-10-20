@@ -19,50 +19,98 @@ cached prefix instead of rewriting it. No change to the brain may slide,
 reorder, or rewrite the prefix. This invariant overrides convenience; treat any
 design that breaks it as wrong.
 
+## Guidelines
+
+These are maintainer-stated development rules for this repository. Everything
+outside this section is pre-existing project documentation.
+
+- Do not couple generic events to specific reducers. A generic event kind (for
+  example `timer`) is not owned by a system; the system's reducer must match its
+  own id/handle and drop everything else.
+- Do not invent new state or config sources. New state belongs in the existing
+  `disk`/`memory` state model, and new knobs belong in the existing config
+  object; do not add parallel memory keys or side stores.
+- Do not make synthetic events or actions. Actions are only the events omw
+  delivers.
+- Keep one reducer per system, with its own `disk`/`memory` state key. The
+  window is shared.
+- Startup and scheduling decisions belong in the dispatcher. The entry loop
+  pumps once at startup and after each event; do not add a drain loop.
+- Inbox messages are answered immediately. For now they preempt only a running
+  digest: cancel it, answer the inbox message, then resume the digest. A
+  foreground endpoint turn, a compaction or an outstanding tool call is not
+  preempted.
+- Follow the existing persistence model: ephemeral handles (subscriptions,
+  timer ids) live in memory and do not survive shutdown; durable state lives in
+  disk.
+- Put default constructors next to their types (like `defaultTurn` and
+  `defaultDisk`), and pass the config in so derived defaults come from it.
+- Do not store data that already exists in the window (for example a digest
+  history).
+- Do not add helper layers around persistence; parse stored state or use the
+  defaults.
+- `dev test unit` and `dev test e2e` are enough to validate a change. Do not
+  worry about untracked files, and leave formatting and linting to the
+  maintainer.
+
 ## Structure
 
 - `src/corm` is the TypeScript package; the pnpm workspace root is the repo
   root.
 - `src/corm/src/index.ts` is the entry: it builds the config, handles and state
   managers (in that order — handles depend on the loaded config), constructs the
-  dispatcher, then drives the event loop over `omw.host.recv()`. Each event is
-  passed to the pure `reduce(event, state, config)` and every returned effect to
-  `dispatcher.dispatch(effect)`; after each event `drain()` pops and dispatches
-  queued inbox requests while the turn is idle and no tool call is outstanding.
-  On `reload` or `shutdown` it releases the state manager (persisting disk to
-  memory or filesystem) and exits.
+  dispatcher (whose constructor arms the digest or parks a catch-up run), then
+  drives the event loop over `omw.host.recv()`. Each event is passed to
+  `reduce(event, state, config, now)` and every returned effect to
+  `dispatcher.dispatch(effect)`; after each event `pump()` starts at most one
+  queued job — the next inbox endpoint request, otherwise a pending digest.
+  `pump()` also runs once at startup, so restored inbox messages are answered
+  first. On `reload` or `shutdown` it releases the state manager (persisting
+  disk to memory or filesystem) and exits.
 - `src/corm/src/types` is the data model and its zod schemas: `state.ts`
-  (`CormState = { memory, disk }`, with the compiled `cormMemoryStateZod` /
-  `cormDiskStateZod`), `window.ts` (`CormWindow`), `turn.ts` (`CormTurn`,
-  `defaultTurn`), `message.ts` (the `CormMessage` family), `config.ts`
-  (`CormConfig`), `subscriptions.ts`, `inbox.ts`, `action.ts`
-  (`CormAction = CormOmwEvent`), `reducer.ts` (`CormReducer`), `omw.ts` (the
-  generated-config-bound omw aliases and the provider/tooling name unions) and
-  `fns.ts` (`matchTaggedUnionExhaustively`).
+  (`CormState = { memory, disk }`, with the compiled `cormMemoryStateZod`, the
+  persisted `cormStoredDiskStateZod` and `defaultDisk(config, tools, stored?)`;
+  disk carries the transient `notices` queue and `digest.last`), `window.ts`
+  (`CormWindow`), `turn.ts` (`CormTurn`, `defaultTurn`, including the `digest` /
+  `digestSince` turn flags), `message.ts` (the `CormMessage` family),
+  `config.ts` (`CormConfig` and the digest/notice knobs), `subscriptions.ts`
+  (the ephemeral digest `timer` handle and `pending` job), `inbox.ts` (a queue
+  of endpoint `CormAction`s), `action.ts` (`CormAction = CormOmwEvent`),
+  `reducer.ts` (`CormReducer`, with the optional `now` clock input for the
+  digest timer), `omw.ts` (the generated-config-bound omw aliases and the
+  provider/tooling name unions) and `fns.ts`
+  (`matchTaggedUnionExhaustively`).
 - `src/corm/src/effects` is the effect vocabulary. `index.ts` defines
   `CormEffect`, the per-kind rule map, and
   `approveEffects(state, action, ...effects)`: it type-checks a sequence by
   threading each rule's `next` state through the chain (so an illegal pairing
   fails to compile) and returns it as `CormApprovedEffect`. `generation.ts`
   (start-chat-generation, start-compaction-generation, commit-compaction,
-  cancel-generation, clear-generation, invoke-corm-tool,
-  forward-client-tool-call, retry-text-tool-call, circuit-break, plus the
-  `isGenerationFree` / `Active` / `Compacting` predicates), `window.ts`
+  cancel-generation, clear-generation, invoke-corm-tools, retry-text-tool-call,
+  circuit-break, plus the `isGenerationFree` / `Active` / `Compacting`
+  predicates), `digest.ts` (arm-digest-timer, start-digest, queue-digest,
+  commit-digest), `window.ts`
   (set-active-request, append-inbound-messages, enqueue-inbound,
-  append-runtime-message, append-recap, append-tool-result), `stream.ts`
-  (fold-chat-delta, stream-endpoint-delta) and `noop.ts` (the deliberate-drop
-  marker).
+  append-runtime-message, append-recap, append-tool-result, queue-notice,
+  flush-notices), `stream.ts` (fold-chat-delta, stream-endpoint-delta) and
+  `noop.ts` (the deliberate-drop marker).
 - `src/corm/src/reducers` holds the pure decisions, one per event family, each
   `(action, state, config) => CormApprovedEffect[]`. `index.ts` routes by event
   kind (`error` goes to `toolReducer` when the id owns an awaited call, else
-  `chatReducer`); `endpoint.ts` owns `endpoint-message` / `endpoint-session-end`
-  (queue-while-busy, recap, ingest, and start chat or compact); `chat.ts` owns
-  `chat-delta` / `chat-end` / `error` / `timer` (the turn protocol: delta
-  folding, mid-stream hard-threshold compaction, text-tool-call retry,
-  client-tool forwarding, soft-threshold compaction on completion); `tool.ts`
-  owns `tool-result` / `error` (a failed tool becomes a `tool` message, and the
-  circuit breaker trips on repeats); `dropped.ts` is the shared "meaningless
-  here" reducer returning a single `noop`.
+  `chatReducer`; `timer` goes to `digestReducer` with the clock). `digest.ts`
+  owns only the digest's own `timer` id: start when idle, queue when busy, skip
+  and re-arm a fire within `digestMinGapMs`, and drop every other timer.
+  `endpoint.ts` owns `endpoint-message` / `endpoint-session-end` (queue-while-
+  busy with a runtime notice, preempt a streaming digest, recap with the
+  endpoint notice, ingest, and start chat or compact); `chat.ts` owns
+  `chat-delta` / `chat-end` /
+  `error` (the turn protocol: delta folding, mid-stream hard-threshold
+  compaction, text-tool-call retry, unavailable-tool rejection, digest
+  commit/re-arm, digest resume notice, soft-threshold compaction on completion);
+  `tool.ts` owns `tool-result` / `error` (a failed tool becomes a `tool`
+  message, the circuit breaker trips on repeats, and parked notices flush before
+  a re-prompt); `dropped.ts` is the shared "meaningless here" reducer returning
+  a single `noop`.
 - `src/corm/src/services` is the impure, class-based layer (classes live only
   here): `handles.ts` (the loaded providers and toolings: it probes only the
   `config.providers` / `config.toolings` names plus the always-present
@@ -80,22 +128,29 @@ design that breaks it as wrong.
   task-state load and persist, seeding `window.tools` from the handles' tools
   filtered by `config.tools` and the disabled list; it uses the private
   `internal-filesystem` tooling for the sanctioned blocking state read/write and
-  skips it when that tooling is absent), `logger.ts` (`CormLogger` over
-  `host.log`) and `dispatch.ts` (the single impure dispatcher, one method per
-  effect kind, performing the host call and mutating `CormState`).
+  skips it when that tooling is absent; it resets the ephemeral generation and
+  digest subscriptions),
+  `logger.ts` (`CormLogger` over `host.log`) and `dispatch.ts` (the single
+  impure dispatcher, one method per effect kind, performing the host call and
+  mutating `CormState`; its constructor arms the digest or parks a catch-up,
+  `startPendingDigest()` starts or resumes a parked job, and an empty
+  `window.session` makes streaming a no-op).
 - `src/corm/src/lib` holds the pure helpers: `window.ts` (framing-aware ingest,
   truncation, digest classification, `windowInput`, the size thresholds,
   `commitCompaction` and recap detection), `messages.ts` (message constructors,
   `foldAssistant`, `clientDelta`, `recomputeMessage`), `turn.ts` (`isTurnIdling`
   / `isTurnChatting` / `isTurnCompacting` / `hasAwaitingTools` / `isTurnBusy`),
-  `defaults.ts` (every `CORM_DEFAULT_*` constant), `config.ts`
-  (`validateConfig`), `framing.ts` (`frame` / `escapeFraming` /
-  `runtimeMessage`), `tokens.ts` (`estimate*Tokens`, `messageDigest`,
-  `toolCallKey`, `truncateContent`), `tools.ts` (`contentText` /
-  `toolResultText`, `cormTools`, `mergeToolArguments`), `static.ts` (`oneLine` /
-  `oneLineRegex`), `keys.ts` (the memory/state keys and `cormToolPrefix`) and
-  `disabled-tools.json` (the always-disabled tool list read by `cormTools` and
-  the Nix `tools.json` generation).
+  `defaults.ts` (every `CORM_DEFAULT_*` constant, including the digest prompt,
+  notices and schedule windows), `config.ts` (`validateConfig`, including the
+  digest/feeds exclusivity and bounds), `framing.ts` (`frame` / `escapeFraming`
+  / `runtimeMessage`), `tokens.ts` (`estimate*Tokens`, `messageDigest`,
+  `toolCallKey`, `usageAnchor`, `truncateContent`), `tools.ts` (`contentText` /
+  `toolResultText`, `cormTools`, `foldToolCalls` / `mergeToolArguments` /
+  `parseToolArguments`, `errorToolResult` / `bareToolName` /
+  `cormFixedOutputTools`), `static.ts` (`oneLine` / `oneLineRegex`), `keys.ts`
+  (the memory/state/digest keys and `cormToolPrefix`) and `disabled-tools.json`
+  (the always-disabled tool list read by `cormTools` and the Nix `tools.json`
+  generation).
 - `src/corm/esbuild.mjs` holds the esbuild config and bundles the brain into the
   single unminified `src/corm/dist/index.js` Boa script (platform `neutral`,
   format `iife`, target `esnext`).
@@ -255,22 +310,25 @@ design that breaks it as wrong.
     the preset module, and optional `args.corm` overrides. The `llama-cpp`,
     `freetoken`, and `strata` presets mirror the benchmarks' provider options.
     The guest sets `corm.omw.bwrapArgs = selfLib.bwrap.container`, so the
-    bubblewrap MCPs drop the `--proc /proc` mount nspawn cannot provide. The
-    container functor injects an inline NixOS module (borrowed from nixpkgs'
-    `nspawn-container`) that declares `virtualisation.rootDir`, `stateDir`,
-    `environmentFile`, `cmdline` and `systemd-nspawn.{package,options}` and
-    exposes `system.build.nspawn`: a wrapper that creates the guest root, state
-    and nix profile/gcroot dirs, then `exec`s `systemd-nspawn` with the guest
-    `init` as a positional argument. The guest runs a read-only console with the
-    journal forwarded to it (`services.journald.console`), so provider, MCP and
-    omw output streams to the terminal (this also covers native-journald loggers
-    like omw; `Ctrl-C` triggers an orderly shutdown) and the container getty
-    disabled, and enables test-style root SSH over `systemd-nspawn`'s
-    unix-export socket (`/run/systemd/nspawn/unix-export/<machine>/ssh`, empty
-    password) without binding TCP port 22. `dev container start <name> [args?]`
-    reads defaults from the ignored root `.corm.container.json`; an explicit CLI
-    record replaces that preset's stored record. It builds `system.build.nspawn`
-    and runs it in the foreground. The wrapper binds persistent `/var/lib/corm`
+    bubblewrap MCPs drop the `--proc /proc` mount nspawn cannot provide, and
+    enables `nix-command`/`flakes` in its own nix config so the `nix` tooling
+    works there (the guest shares the host store, database and daemon socket,
+    not the host `/etc/nix/nix.conf`). The container functor injects an inline
+    NixOS module (borrowed from nixpkgs' `nspawn-container`) that declares
+    `virtualisation.rootDir`, `stateDir`, `environmentFile`, `cmdline` and
+    `systemd-nspawn.{package,options}` and exposes `system.build.nspawn`: a
+    wrapper that creates the guest root, state and nix profile/gcroot dirs, then
+    `exec`s `systemd-nspawn` with the guest `init` as a positional argument. The
+    guest runs a read-only console with the journal forwarded to it
+    (`services.journald.console`), so provider, MCP and omw output streams to
+    the terminal (this also covers native-journald loggers like omw; `Ctrl-C`
+    triggers an orderly shutdown) and the container getty disabled, and enables
+    test-style root SSH over `systemd-nspawn`'s unix-export socket
+    (`/run/systemd/nspawn/unix-export/<machine>/ssh`, empty password) without
+    binding TCP port 22. `dev container start <name> [args?]` reads defaults
+    from the ignored root `.corm.container.json`; an explicit CLI record
+    replaces that preset's stored record. It builds `system.build.nspawn` and
+    runs it in the foreground. The wrapper binds persistent `/var/lib/corm`
     state, the host Nix store/database/socket and root `.env`, shares host
     networking with the endpoint restricted to loopback, and forwards omw logs
     to the terminal. `dev container client` runs the `aichat` client against
@@ -297,14 +355,15 @@ Corm serves one model and one KV cache, so every request shares a single global,
 prompt-free context window (`disk.window`) and only one chat/compaction
 generation runs at a time. The window (`lib/window.ts`, `types/window.ts`)
 carries the leading `system` message, the rolling `summary`, the framed `active`
-messages, the current session/params and client tools, and the size counters
-(`tokens`/`chars`, measured against the provider's `anchor`).
+messages, the current session/params, and the size counters (`tokens`/`chars`,
+measured against the provider's `anchor`).
 
 - **Single writer.** There is no task stack: `endpointReducer` parks an
-  `endpoint-message` in `disk.inbox` while `isTurnBusy` (a generation is open or
-  `turn.awaiting` is non-empty), and `index.ts::drain` answers the inbox one
-  request at a time once the turn is idle. A `chat-delta`/`chat-end`/`error`
-  whose id is not the open generation is dropped.
+  `endpoint-message` (plus a runtime notice) in `disk.inbox` while `isTurnBusy`
+  (a generation is open or `turn.awaiting` is non-empty), and `index.ts::drain`
+  answers the inbox one action at a time (endpoint request or digest job) once
+  the turn is idle. A `chat-delta`/`chat-end`/`error` whose id is not the open
+  generation is dropped.
 - **Input.** `windowInput` renders `[system][summary?][…active]`. The `system`
   message is `runtimeSystemPrompt` + `chatSystemPrompt` joined by blank lines,
   with the operator `config.prompt` appended under `promptPrelude`; it never
@@ -317,14 +376,19 @@ messages, the current session/params and client tools, and the size counters
   is applied on ingest and stored; both `⟦` and `⟧` are escaped and a full
   `⟦<tag>⟧` attempt in inbound content is detected (`detectFraming`). It is not
   a security boundary.
-- **Identity.** Messages are content-addressed (`messageDigest`) into the global
-  `active` set plus bounded `disk.receipts`, so a re-offered message is
-  classified `current` (already present), `compacted` (in a receipt) or `new`,
-  and only `new` is appended (`appendInboundMessages`).
+- **Identity.** Messages are content-addressed (`messageDigest`: role +
+  content + tool calls, deliberately excluding `reasoning`, which a client never
+  re-sends) into the global `active` set plus bounded `disk.receipts`, so a
+  re-offered message is classified `current` (already present), `compacted` (in
+  a receipt) or `new`, and only `new` is appended (`appendInboundMessages`).
 - **Truncation.** Every ingested user/tool body and every tool result is capped
   at `messageTokenLimit` (head + `truncationMarker` + tail) before framing; a
-  cut message gets a following `⟦runtime⟧` `truncationHint`. Assistant messages
-  are stored verbatim.
+  cut message gets a following `⟦runtime⟧` `truncationHint`. Results whose bare
+  tool name is in `noTruncateTools` (default `cormFixedOutputTools`, the tools
+  whose output size the model cannot control) bypass the cap and are stored
+  whole, with compaction as the backstop; a fixed-output tool opted back into
+  truncation gets `fixedOutputTruncationHint` instead of the reduce-output hint.
+  Assistant messages are stored verbatim.
 - **Compaction.** A completed turn, a tool settle or an ingest whose
   `windowSize` (`max(anchor, tokens)`) is at/above
   `compactThreshold * contextLength` starts a compaction generation:
@@ -344,23 +408,59 @@ messages, the current session/params and client tools, and the size counters
   messages and fires when one of those last `recapMessages` is among the
   receipts; the reducer then computes `recapReplay` (the newest `replayMessages`
   evicted messages of that tail, trimmed from the oldest to fit
-  `replayRatio * contextLength`), and `append-recap` inserts a `recapNotice`
-  (filled with `{{NAME}}`/`{{ID}}`/`{{DESCRIPTION}}`), the replayed messages and
-  a closing `recapEndNotice` before the new turn; interleaving alone never
+  `replayRatio * contextLength`), and `append-recap` inserts a notice (filled
+  with `{{NAME}}`/`{{ID}}`/`{{DESCRIPTION}}`; an endpoint request uses
+  `endpointRecapNotice`, falling back to `recapNotice`), the replayed messages
+  and a closing `recapEndNotice` before the new turn; interleaving alone never
   recaps.
 - **The turn.** The visible answer streams into `active` as a live `assistant`
-  message (`foldAssistantDelta`), and settled tool exchanges are stored as
-  `tool` messages (`appendToolResult`), so the model never re-answers an earlier
-  message; `forward-client-tool-call` leaves client tool calls to be echoed by
-  the client. A tool call emitted as text (matching `toolCallPattern` in the
+  message (`foldAssistantDelta`), which accumulates the response's parallel tool
+  calls by fragment index into raw argument JSON text (`foldToolCalls`: omw may
+  hand a fragment over parsed, so it is stringified back before concatenation);
+  `invoke-corm-tools` parses that text back into the value `callTool` expects
+  (`parseToolArguments`), since omw serializes the value it is given. Settled
+  tool results are buffered for the assistant exchange and appended in the
+  assistant's tool-call order once the last call settles; each is stored as a
+  `tool` message (`appendToolResult`) carrying the call's `toolCallId`, so the
+  model never re-answers an earlier message. Error results are labeled
+  `Tool error (<name> #<id>)` so the model can attribute them even when a batch
+  called the same tool twice. A turn may call several tools at once:
+  `invoke-corm-tools` runs every corm-owned call and the reducer only re-prompts
+  once the whole `awaiting` set has settled. A client's own tools are dropped
+  (they would break the shared prefix and let a second driver write the window);
+  `set-active-request` warns with their names, and a call the model made that
+  corm does not offer is answered with an error `tool` message and a bounded
+  re-prompt. A tool call emitted as text (matching `toolCallPattern` in the
   visible content, or the reasoning when there is no content) is retried with
   `toolCallHint` up to `toolCallRetryLimit`; the same call (name + canonical
   arguments) repeated `circuitBreakerLimit` times in one user turn trips the
   breaker, which drops the last exchange and appends `circuitBreakerHint`.
-- **Config.** Every context knob is a field of `cormConfigZod`
-  (`types/config.ts`) and is overlaid under `corm_config_<field>`
-  (`corm.settings` is freeform). `model` and `contextLength` are required, and
-  `validateConfig` (`lib/config.ts`) throws at startup on any violated bound.
+- **Jobs and notices.** The daily digest is a background turn. The dispatcher
+  constructor parks a catch-up run when there is no previous run or it is older
+  than `digestMaxAgeMs`, otherwise it arms the cron; `pump()` starts or resumes
+  the parked job at the next safe point. `start-digest` flushes parked notices,
+  appends the start notice plus the prompt as a `⟦runtime⟧` message, clears the
+  endpoint session (so streaming is a no-op) and starts the chat. A completed
+  digest records `disk.digest.last`; the schedule is re-armed on success or
+  failure. The `turn.digest` flag survives compaction, and a compaction resume
+  appends `digestResumeNotice`. An endpoint message that arrives while a digest
+  is streaming preempts it: the digest is cancelled and parked for a `resume`,
+  the endpoint turn runs immediately, and `pump()` continues the digest with
+  `digestResumeNotice` (the prompt is not appended twice). An endpoint message
+  while a foreground turn, a compaction or an outstanding tool call is active
+  is parked with `endpointQueuedNotice`; parked notices are flushed at the next
+  safe point (a tool settle, a completed turn, a compaction commit, or the start
+  of the queued request), never while an assistant stream is live, so a notice
+  cannot split the assistant message.
+- **Config.** Every context knob, including the `noTruncateTools` and
+  `fixedOutputTruncationHint` overrides and the digest/notice knobs
+  (`digestCron` — six-field cron or `true` to disable — `digestFeeds`,
+  `digestPrompt`, `digestLookbackMs`, `digestMaxAgeMs`, `digestMinGapMs`,
+  `digest*Notice`, `endpointQueuedNotice`,
+  `endpointRecapNotice`), is a field of `cormConfigZod` (`types/config.ts`) and
+  is overlaid under `corm_config_<field>` (`corm.settings` is freeform). `model`
+  and `contextLength` are required, and `validateConfig` (`lib/config.ts`)
+  throws at startup on any violated bound.
 
 ## Logging
 
@@ -472,8 +572,11 @@ carries the `# x-release-please-version` annotation so it is bumped alongside
   or hanging case. The endpoint mock scripts concurrent sessions with
   `session_id`, orders requests with `after`, and emits `endpoint-session-end`
   via `session_end = { close = 0 }`; the omw testing docs under `docs/testing/`
-  are the reference. Each case opens with a comment block stating what it proves
-  and the crucial invariant it protects; keep that habit when adding a case.
+  are the reference.   The digest cases use the startup catch-up path (a cron
+  string with no previous run) so they need no wall-clock wait; `digestCron =
+  true` is the kill switch, and unit tests drive the digest `timer` event
+  directly. Each case opens with a comment block stating what it proves and the
+  crucial invariant it protects; keep that habit when adding a case.
 
 ## Nix and dependencies
 

@@ -31,7 +31,7 @@ export const estimateMessageTokens = (
   let tokens = messageTokenOverhead;
   tokens += estimateTextTokens(message.content, charsPerToken);
   tokens += estimateTextTokens(message.reasoning, charsPerToken);
-  tokens += estimateTextTokens(stringify(message.toolCall), charsPerToken);
+  tokens += estimateTextTokens(stringify(message.toolCalls), charsPerToken);
   return tokens;
 };
 
@@ -50,6 +50,34 @@ export const estimateMessagesTokens = (
 export const toolCallKey = (name: string, args: unknown): string =>
   `${name}:${canonicalize(args)}`;
 
+// The prompt size a provider reported on a delta's opaque usage, summing the
+// prompt and completion counts. omw passes the wire object through verbatim as
+// an opaque JSON string (or, once parsed, an object), so both shapes and both
+// the snake_case wire spelling and the camelCase alias are accepted.
+export const usageAnchor = (usage: unknown): number | undefined => {
+  let value = usage;
+  if (typeof value === "string") {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return undefined;
+    }
+  }
+
+  if (value === null || typeof value !== "object") {
+    return undefined;
+  }
+
+  const record = value as Record<string, unknown>;
+  const number = (entry: unknown): number =>
+    typeof entry === "number" ? entry : 0;
+  const tokens =
+    number(record.prompt_tokens ?? record.promptTokens) +
+    number(record.completion_tokens ?? record.completionTokens);
+
+  return tokens > 0 ? tokens : undefined;
+};
+
 export const messageFingerprint = (message: ChatMessage): string => {
   try {
     return JSON.stringify(message) ?? "";
@@ -58,15 +86,21 @@ export const messageFingerprint = (message: ChatMessage): string => {
   }
 };
 
+// The identity of a message for the window's content addressing. `reasoning` is
+// deliberately excluded: a client that re-offers its history sends the visible
+// assistant content and tool calls but never the provider's private reasoning,
+// so including it would make an assistant turn hash differently on re-offer and
+// be appended as a duplicate instead of being skipped.
 export const messageDigest = (message: ChatMessage): string => {
-  const text = [
-    message.role ?? "user",
-    message.content ?? "",
-    message.reasoning ?? "",
-    message.toolCall !== undefined
-      ? `${message.toolCall.id ?? ""}\u0001${toolCallKey(message.toolCall.name, message.toolCall.arguments)}`
-      : "",
-  ].join("\u0000");
+  const toolCalls = (message.toolCalls ?? [])
+    .map(
+      (call) =>
+        `${call.id ?? ""}\u0001${toolCallKey(call.name, call.arguments)}`,
+    )
+    .join("\u0002");
+  const text = [message.role ?? "user", message.content ?? "", toolCalls].join(
+    "\u0000",
+  );
   const first = fnv1a(text, 0x811c9dc5);
   const second = fnv1a(text, 0x01000193);
   return `${first.toString(16)}:${second.toString(16)}`;

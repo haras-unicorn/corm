@@ -1,0 +1,39 @@
+# Fixed-output tools bypass `messageTokenLimit` by default: the model cannot
+# reduce an RSS feed with arguments, so its full result reaches the window.
+#
+# Crucial: the middle marker survives. If the result had been truncated, the
+# head + `<truncated>` + tail would have removed it.
+[endpoint]
+requests = [
+  { model = "corm", session_id = "corm", messages = [
+    { content = "read the feed" },
+  ] },
+]
+
+[providers.gpu]
+turns = [
+  { tool_calls = [
+    { id = "call-1", name = "corm__rss__get_articles", arguments = '{"feeds":["https://example.com/feed"]}' },
+  ] },
+  { content = "done" },
+]
+
+[memory.corm]
+corm_config = { messageTokenLimit = 10 }
+corm_state = {}
+
+[tooling.rss]
+tool_calls = [
+  { name = "get_articles", result = "start-of-feed aaaaaaaaaaaaaaaaaaaa MIDDLE-OF-FEED bbbbbbbbbbbbbbbbbbbb end-of-feed" },
+]
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "call", op = "chat_stream" },
+  { kind = "call", op = "call_tool" },
+  { kind = "inbound", event = "tool-result" },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "tool", content = "MIDDLE-OF-FEED" },
+  ] } },
+]

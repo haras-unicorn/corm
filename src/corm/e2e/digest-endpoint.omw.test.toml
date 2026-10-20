@@ -1,0 +1,44 @@
+# An endpoint request that arrives while the digest is streaming preempts it:
+# corm cancels the digest, answers the endpoint request immediately, and then
+# resumes the digest with a runtime notice.
+#
+# Crucial: the endpoint answer is not committed as the digest, the digest prompt
+# is not appended twice, and the resumed digest commits the original start time.
+[memory.corm]
+corm_config = { digestCron = "0 0 8 * * *", digestFeeds = [
+  "https://example.test/feed",
+], digestStartNotice = "DIGEST START" }
+corm_state = {}
+
+[endpoint]
+requests = [
+  { model = "corm", session_id = "s", messages = [
+    { content = "hello" },
+  ], after = { kind = "call", op = "chat_stream" } },
+]
+
+[providers.gpu]
+turns = [
+  { content = "digest partial" },
+  { content = "endpoint answer" },
+  { content = "digest text" },
+]
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\nDIGEST START" },
+  ] } },
+  { kind = "inbound", event = "endpoint-message" },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦client⟧\\n\\nhello$" },
+  ] } },
+  { kind = "call", op = "stream_endpoint" },
+  { kind = "inbound", event = "chat-end" },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "You are resuming the daily digest" },
+  ] } },
+  { kind = "inbound", event = "chat-end" },
+  { kind = "call", op = "wait_cron" },
+]

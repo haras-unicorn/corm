@@ -45,7 +45,6 @@ const windowOf = (): CormWindow => ({
   summary: "",
   active: [],
   tools: [],
-  clientTools: [],
   session: "",
   params: undefined,
   tokens: 0,
@@ -82,6 +81,23 @@ test("appendInboundMessages skips messages already present", () => {
   appendInboundMessages(window, [client("a"), client("b")], [], config);
 
   expect(window.active).toHaveLength(2);
+});
+
+test("appendInboundMessages skips a re-offered assistant with different reasoning", () => {
+  const window = windowOf();
+  window.active.push(
+    assistantMessage("reply", "private reasoning", [], config),
+  );
+
+  appendInboundMessages(
+    window,
+    [{ role: "assistant", content: "reply" }],
+    [],
+    config,
+  );
+
+  expect(window.active).toHaveLength(1);
+  expect(liveAssistant(window)?.content).toBe("reply");
 });
 
 test("appendInboundMessages skips a message compaction already evicted", () => {
@@ -150,7 +166,7 @@ test("foldAssistantDelta accumulates content into the live message", () => {
   expect(window.active).toHaveLength(1);
 });
 
-test("appendToolResult appends a tool message", () => {
+test("appendToolResult appends a tool message with its call id", () => {
   const window = windowOf();
 
   appendToolResult(
@@ -159,12 +175,109 @@ test("appendToolResult appends a tool message", () => {
       name: "echo",
       arguments: {},
       content: [{ type: "text", text: "hi" }],
+      isError: false,
     },
+    "call-1",
     config,
   );
 
   expect(window.active.at(-1)?.role).toBe("tool");
   expect(window.active.at(-1)?.content).toBe("hi");
+  expect(window.active.at(-1)?.message.toolCallId).toBe("call-1");
+});
+
+test("appendToolResult leaves fixed-output tools untruncated by default", () => {
+  const window = windowOf();
+  const tight = baseConfig({ messageTokenLimit: 1, charsPerToken: 1 });
+
+  appendToolResult(
+    window,
+    {
+      name: "get_articles",
+      arguments: {},
+      content: [{ type: "text", text: "a long feed" }],
+      isError: false,
+    },
+    "call-1",
+    tight,
+    "corm__rss__get_articles",
+  );
+
+  expect(window.active).toHaveLength(1);
+  expect(window.active[0].content).toBe("a long feed");
+});
+
+test("appendToolResult truncates a fixed-output tool with the fixed hint when opted out", () => {
+  const window = windowOf();
+  const tight = baseConfig({
+    messageTokenLimit: 1,
+    charsPerToken: 1,
+    noTruncateTools: [],
+  });
+
+  appendToolResult(
+    window,
+    {
+      name: "get_articles",
+      arguments: {},
+      content: [{ type: "text", text: "a long feed" }],
+      isError: false,
+    },
+    "call-1",
+    tight,
+    "corm__rss__get_articles",
+  );
+
+  expect(window.active).toHaveLength(2);
+  expect(window.active[0].content).toContain("<truncated>");
+  expect(window.active[1].content).toContain("not controlled by its arguments");
+});
+
+test("appendToolResult keeps the normal hint for a reducible tool", () => {
+  const window = windowOf();
+  const tight = baseConfig({
+    messageTokenLimit: 1,
+    charsPerToken: 1,
+    noTruncateTools: [],
+  });
+
+  appendToolResult(
+    window,
+    {
+      name: "nix",
+      arguments: {},
+      content: [{ type: "text", text: "a long result" }],
+      isError: false,
+    },
+    "call-1",
+    tight,
+    "corm__nixos__nix",
+  );
+
+  expect(window.active[1].content).toContain(
+    "Please try reducing tool call output",
+  );
+});
+
+test("appendToolResult labels errors with the tool name and call id", () => {
+  const window = windowOf();
+
+  appendToolResult(
+    window,
+    {
+      name: "echo",
+      arguments: {},
+      content: [{ type: "text", text: "boom" }],
+      isError: true,
+    },
+    "call-1",
+    config,
+    "corm__filesystem__echo",
+  );
+
+  expect(window.active[0].content).toBe(
+    "Tool error (corm__filesystem__echo #call-1): boom",
+  );
 });
 
 test("appendRuntimeMessage frames a runtime message and recounts", () => {
@@ -200,10 +313,16 @@ test("projectIngest does not mutate the original window", () => {
 test("dropLastExchange removes the trailing tool messages and the assistant", () => {
   const window = windowOf();
   appendInboundMessages(window, [client("q")], [], config);
-  window.active.push(assistantMessage("call", undefined, undefined, config));
+  window.active.push(assistantMessage("call", undefined, [], config));
   appendToolResult(
     window,
-    { name: "t", arguments: {}, content: [{ type: "text", text: "r" }] },
+    {
+      name: "t",
+      arguments: {},
+      content: [{ type: "text", text: "r" }],
+      isError: false,
+    },
+    undefined,
     config,
   );
 
@@ -244,14 +363,13 @@ test("isCompacted finds a digest in any receipt", () => {
   expect(isCompacted("d", [["a"], ["b"]])).toBe(false);
 });
 
-test("setActiveRequest records the session, params and client tools", () => {
+test("setActiveRequest records the session and params", () => {
   const window = windowOf();
 
-  setActiveRequest(window, "s1", { temperature: 1 }, [{ name: "client__x" }]);
+  setActiveRequest(window, "s1", { temperature: 1 });
 
   expect(window.session).toBe("s1");
   expect(window.params).toEqual({ temperature: 1 });
-  expect(window.clientTools).toHaveLength(1);
 });
 
 test("ownsTool matches corm tool names only", () => {

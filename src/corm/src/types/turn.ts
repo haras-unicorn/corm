@@ -3,6 +3,11 @@ import z from "zod";
 export const cormPendingToolCallZod = z.object({
   name: z.string(),
   arguments: z.unknown(),
+  // The model's tool-call id, echoed on the `tool` message that answers it.
+  toolCallId: z.string().optional(),
+  // The call's position in the assistant's tool-call array, so settled results
+  // are appended in call order rather than completion order.
+  order: z.number().optional(),
 });
 
 export type CormPendingToolCall = z.infer<typeof cormPendingToolCallZod>;
@@ -23,6 +28,12 @@ export const cormTurnZod = z.object({
   // commits (true when it interrupted or precedes an answer, false when the
   // answer already streamed and the next request comes from the inbox).
   resume: z.boolean().default(false),
+  // Whether the current turn is a background daily digest. It survives
+  // compaction so the resumed turn is still recognized as the digest.
+  digest: z.boolean().default(false),
+  // The digest turn's start time in epoch milliseconds; committed as the new
+  // `digest.last` only when the digest completes successfully.
+  digestSince: z.number().optional(),
 });
 
 export interface CormTurn extends z.infer<typeof cormTurnZod> {}
@@ -33,4 +44,6 @@ export const defaultTurn = (): CormTurn => ({
   toolCallRetries: 0,
   toolCalls: {},
   resume: false,
+  digest: false,
+  digestSince: undefined,
 });

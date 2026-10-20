@@ -1,22 +1,20 @@
-import {
-  CORM_DEFAULT_CHAT_SYSTEM_PROMPT,
-  CORM_DEFAULT_PROMPT_PRELUDE,
-  CORM_DEFAULT_RUNTIME_SYSTEM_PROMPT,
-} from "corm/lib/defaults";
-import { recomputeMessage, systemMessage } from "corm/lib/messages";
 import type { CormConfig } from "corm/types/config";
-import { cormStateFile, cormStateKey, cormSubscriptionsKey } from "../lib/keys";
-import { contentText, cormTools } from "../lib/tools";
+import {
+  cormStateFile,
+  cormStateKey,
+  cormSubscriptionsKey,
+} from "../lib/keys";
+import { contentText } from "../lib/tools";
 import type { CormLogger } from "../services/logger";
 import type { CormOmwEvent } from "../types/omw";
 import {
-  type CormDiskState,
   type CormMemoryState,
   type CormState,
-  cormDiskStateZod,
+  type CormStoredDiskState,
   cormMemoryStateZod,
+  cormStoredDiskStateZod,
+  defaultDisk,
 } from "../types/state";
-import { defaultTurn } from "../types/turn";
 import type { CormHandles } from "./handles";
 
 export interface CormStateManager {
@@ -50,7 +48,7 @@ class CormOmwStateManager {
     };
 
     this._state.memory.subscriptions.generation = undefined;
-    this._state.disk.turn = defaultTurn();
+    this._state.memory.subscriptions.digest = undefined;
 
     return this._state;
   }
@@ -96,7 +94,7 @@ class CormOmwStateManager {
     return memory;
   }
 
-  private _loadDisk(): CormDiskState {
+  private _loadDisk(): CormState["disk"] {
     this._logger.info("loading corm task state");
 
     let stateValue = this._handles.host().memoryGet(cormStateKey);
@@ -129,22 +127,16 @@ class CormOmwStateManager {
       }
     }
 
-    const defaults = this._defaultDisk();
-
-    let disk: CormDiskState;
+    let stored: CormStoredDiskState | undefined;
     try {
-      disk = cormDiskStateZod.parse(JSON.parse(stateValue ?? "{}"));
-    } catch {
-      disk = defaults;
+      stored = cormStoredDiskStateZod.parse(JSON.parse(stateValue ?? "{}"));
+    } catch (error) {
+      this._logger.warn(
+        `stored task state is invalid; starting from defaults: ${(error as Error).message}`,
+      );
     }
 
-    disk.window.system = defaults.window.system;
-    disk.window.tools = defaults.window.tools;
-    disk.window.active = disk.window.active.map((message) =>
-      recomputeMessage(message, this._config),
-    );
-    disk.turn = defaultTurn();
-
+    const disk = defaultDisk(this._config, this._handles.tools(), stored);
     this._logger.debug("restored state");
     return disk;
   }
@@ -193,37 +185,5 @@ class CormOmwStateManager {
     this._handles
       .host()
       .memorySet(cormSubscriptionsKey, JSON.stringify(this._state.memory));
-  }
-
-  private _defaultDisk(): CormDiskState {
-    const systemContent = [
-      this._config.runtimeSystemPrompt ?? CORM_DEFAULT_RUNTIME_SYSTEM_PROMPT,
-      this._config.chatSystemPrompt ?? CORM_DEFAULT_CHAT_SYSTEM_PROMPT,
-    ].join("\n\n");
-
-    const content =
-      this._config.prompt !== undefined && this._config.prompt !== ""
-        ? `${systemContent}\n\n${
-            this._config.promptPrelude ?? CORM_DEFAULT_PROMPT_PRELUDE
-          }\n\n${this._config.prompt}`
-        : systemContent;
-
-    return {
-      inbox: [],
-      window: {
-        system: systemMessage(content, this._config),
-        summary: "",
-        active: [],
-        tools: cormTools(this._handles.tools(), this._config),
-        clientTools: [],
-        session: "",
-        params: undefined,
-        tokens: 0,
-        chars: 0,
-      },
-      turn: defaultTurn(),
-      receipts: [],
-      task: 0,
-    };
   }
 }

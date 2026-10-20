@@ -7,4 +7,5 @@ export type CormReducer = (
   action: CormAction,
   state: CormState,
   config: CormConfig,
+  now?: number,
 ) => CormApprovedEffect[];

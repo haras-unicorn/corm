@@ -1,8 +1,8 @@
 import z from "zod";
-import type { CormOmwEvent } from "./omw";
+import type { CormAction } from "./action";
 
 export const cormInboxMessageZod = z.object({
-  event: z.custom<CormOmwEvent & { kind: "endpoint-message" }>(),
+  event: z.custom<CormAction & { kind: "endpoint-message" }>(),
 });
 
 export type CormInboxMessage = z.infer<typeof cormInboxMessageZod>;

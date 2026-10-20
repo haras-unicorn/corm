@@ -17,9 +17,13 @@ requests = [
 
 [providers.gpu]
 turns = [
-  { tool_call = { id = "call-1", name = "corm__filesystem__echo", arguments = '{"input":"hi"}' } },
-  { content = "one" },
-  { tool_call = { id = "call-2", name = "corm__filesystem__echo", arguments = '{"input":"hi"}' } },
+  { tool_calls = [
+    { id = "call-1", name = "corm__filesystem__echo", arguments = '{"input":"hi"}' },
+  ] },
+  { content = "again" },
+  { tool_calls = [
+    { id = "call-2", name = "corm__filesystem__echo", arguments = '{"input":"hi"}' },
+  ] },
   { content = "two" },
 ]
 

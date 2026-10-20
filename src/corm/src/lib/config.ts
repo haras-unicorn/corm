@@ -2,6 +2,9 @@ import type { CormConfig } from "../types/config";
 import {
   CORM_DEFAULT_COMPACT_SUMMARY_LIMIT,
   CORM_DEFAULT_COMPACT_THRESHOLD,
+  CORM_DEFAULT_DIGEST_LOOKBACK_MS,
+  CORM_DEFAULT_DIGEST_MAX_AGE_MS,
+  CORM_DEFAULT_DIGEST_MIN_GAP_MS,
   CORM_DEFAULT_HARD_THRESHOLD,
   CORM_DEFAULT_MESSAGE_TOKEN_LIMIT,
   CORM_DEFAULT_PROTECT_RATIO,
@@ -80,6 +83,44 @@ export const validateConfig = (config: CormConfig): void => {
         compactSummaryLimit must not exceed protectRatio * contextLength
         (${protectRatio * contextLength}); got ${compactSummaryLimit}
       `),
+    );
+  }
+
+  if (typeof config.digestCron === "string") {
+    if (config.digestCron.trim() === "") {
+      throw new Error("digestCron must not be empty");
+    }
+
+    if (
+      (config.digestFeeds?.length ?? 0) === 0 &&
+      config.digestPrompt === undefined
+    ) {
+      throw new Error(
+        "digestCron requires digestFeeds or a custom digestPrompt",
+      );
+    }
+  }
+
+  const digestLookbackMs =
+    config.digestLookbackMs ?? CORM_DEFAULT_DIGEST_LOOKBACK_MS;
+  const digestMaxAgeMs =
+    config.digestMaxAgeMs ?? CORM_DEFAULT_DIGEST_MAX_AGE_MS;
+  const digestMinGapMs =
+    config.digestMinGapMs ?? CORM_DEFAULT_DIGEST_MIN_GAP_MS;
+
+  if (!(digestLookbackMs > 0)) {
+    throw new Error(
+      `digestLookbackMs must be positive; got ${digestLookbackMs}`,
+    );
+  }
+
+  if (!(digestMaxAgeMs > 0)) {
+    throw new Error(`digestMaxAgeMs must be positive; got ${digestMaxAgeMs}`);
+  }
+
+  if (!(digestMinGapMs >= 0)) {
+    throw new Error(
+      `digestMinGapMs must not be negative; got ${digestMinGapMs}`,
     );
   }
 };

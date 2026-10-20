@@ -89,31 +89,33 @@ export type CormClearGenerationEffectRule = {
   next: CormGenerationClosedState;
 };
 
-// `invoke-corm-tool` calls one of corm's own tools, records it in the turn's
-// awaiting set for the matching tool result, and clears the generation. It is
-// only legal at the end of a turn and while a generation is open.
-export interface CormInvokeCormToolEffect {
-  kind: "invoke-corm-tool";
-  name: string;
-  arguments: unknown;
+// `invoke-corm-tools` calls the corm-owned tools the assistant asked for,
+// records each in the turn's awaiting set for its matching tool result, and
+// clears the generation. Calls the assistant made that corm does not offer are
+// answered with an error `tool` message (`rejected`) so the provider's
+// tool-call contract holds and the model can recover. `order` is the call's
+// position in the assistant's tool-call array, used to settle results in call
+// order. It is only legal at the end of a turn and while a generation is open.
+export interface CormInvokeCormToolsEffect {
+  kind: "invoke-corm-tools";
+  calls: {
+    name: string;
+    arguments: unknown;
+    toolCallId: string;
+    order: number;
+  }[];
+  rejected: {
+    name: string;
+    arguments: unknown;
+    toolCallId: string;
+    order: number;
+  }[];
 }
 
-export type CormInvokeCormToolEffectRule = {
+export type CormInvokeCormToolsEffectRule = {
   state: CormGenerationOpenState;
   action: CormAction & { kind: "chat-end" };
   next: CormGenerationClosedState;
-};
-
-// `forward-client-tool-call` streams a tool call corm does not own to the
-// endpoint for the client to execute. It is only legal at the end of a turn.
-export interface CormForwardClientToolCallEffect {
-  kind: "forward-client-tool-call";
-  toolCall: ToolCall;
-}
-
-export type CormForwardClientToolCallEffectRule = {
-  state: CormState;
-  action: CormAction & { kind: "chat-end" };
 };
 
 // `retry-text-tool-call` handles a tool call the model wrote as text instead of

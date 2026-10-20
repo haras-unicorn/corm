@@ -30,34 +30,57 @@ test("userMessage frames the content under its tag", () => {
   expect(message.content).toContain("⟦client⟧");
 });
 
-test("assistantMessage starts with no deltas", () => {
-  const message = assistantMessage("answer", "why", undefined, config);
+test("assistantMessage starts with no deltas and no tool calls", () => {
+  const message = assistantMessage("answer", "why", [], config);
 
   expect(message.role).toBe("assistant");
   expect(message.content).toBe("answer");
   expect(message.reasoning).toBe("why");
+  expect(message.toolCalls).toEqual([]);
   expect(message.deltas).toEqual([]);
 });
 
-test("toolMessage carries its role", () => {
-  expect(toolMessage("result", config).role).toBe("tool");
+test("toolMessage carries its role and tool call id", () => {
+  const message = toolMessage("result", "call-1", config);
+
+  expect(message.role).toBe("tool");
+  expect(message.toolCallId).toBe("call-1");
 });
 
-test("foldAssistant accumulates content and merges the tool call", () => {
+test("foldAssistant accumulates content and merges tool-call fragments", () => {
   const first = foldAssistant(
     undefined,
-    { content: "he", toolCall: { id: "1", name: "t", arguments: '{"a":' } },
+    {
+      content: "he",
+      toolCalls: [{ index: 0, id: "1", name: "t", arguments: '{"a":' }],
+    },
     config,
   );
   const second = foldAssistant(
     first,
-    { content: "llo", toolCall: { id: "1", name: "t", arguments: '{"a":1}' } },
+    { content: "llo", toolCalls: [{ index: 0, arguments: "1}" }] },
     config,
   );
 
   expect(second.content).toBe("hello");
-  expect(second.toolCall?.arguments).toBe('{"a":1}');
+  expect(second.toolCalls[0]?.name).toBe("t");
+  expect(second.toolCalls[0]?.arguments).toBe('{"a":1}');
   expect(second.deltas).toHaveLength(2);
+});
+
+test("foldAssistant keeps parallel tool calls grouped by index", () => {
+  const message = foldAssistant(
+    undefined,
+    {
+      toolCalls: [
+        { index: 0, id: "a", name: "x", arguments: "{}" },
+        { index: 1, id: "b", name: "y", arguments: "{}" },
+      ],
+    },
+    config,
+  );
+
+  expect(message.toolCalls.map((call) => call.name)).toEqual(["x", "y"]);
 });
 
 test("foldAssistant drops empty reasoning", () => {
@@ -77,11 +100,11 @@ test("recomputeMessage rebuilds the derived fields", () => {
   expect(recomputed.tokens).toBe(fresh.tokens);
 });
 
-test("clientDelta keeps only the visible fields", () => {
-  const toolCall = { id: "1", name: "t", arguments: "{}" };
+test("clientDelta keeps the visible fields and drops tool calls", () => {
+  const toolCalls = [{ index: 0, id: "1", name: "t", arguments: "{}" }];
 
   expect(
-    clientDelta({ content: "a", reasoning: "b", toolCall, usage: {} }),
-  ).toEqual({ content: "a", reasoning: "b", toolCall, usage: {} });
+    clientDelta({ content: "a", reasoning: "b", toolCalls, usage: {} }),
+  ).toEqual({ content: "a", reasoning: "b", usage: {} });
   expect(clientDelta({})).toEqual({});
 });

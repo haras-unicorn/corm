@@ -221,6 +221,11 @@ in
             networking.hostName = "corm-${container.name}";
             networking.firewall.enable = false;
 
+            nix.settings.experimental-features = [
+              "nix-command"
+              "flakes"
+            ];
+
             environment.systemPackages = lib.mkIf debug [
               pkgs.elfutils
               pkgs.gdb

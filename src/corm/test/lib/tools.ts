@@ -1,8 +1,10 @@
 import {
   contentText,
   cormTools,
+  errorToolResult,
+  foldToolCalls,
   mergeToolArguments,
-  mergeToolCalls,
+  parseToolArguments,
   toolResultText,
 } from "corm/lib/tools";
 import { expect, test } from "vitest";
@@ -48,6 +50,14 @@ const result = (content: unknown, structuredContent?: unknown): ToolResult => ({
   arguments: {},
   content,
   structuredContent,
+  isError: false,
+});
+
+test("errorToolResult carries the raw message for the window to label", () => {
+  const error = errorToolResult("corm__filesystem__echo", {}, "boom");
+
+  expect(error.isError).toBe(true);
+  expect(toolResultText(error)).toBe("boom");
 });
 
 test("contentText prefers structured content", () => {
@@ -102,37 +112,57 @@ test("toolResultText falls back to JSON", () => {
   expect(toolResultText(result({ answer: 42 }))).toBe('{"answer":42}');
 });
 
-test("mergeToolArguments extends overlapping cumulative fragments", () => {
-  expect(mergeToolArguments('{"a":', '{"a":1}')).toBe('{"a":1}');
+test("mergeToolArguments concatenates raw string fragments", () => {
   expect(mergeToolArguments('{"a":', "1}")).toBe('{"a":1}');
 });
 
-test("mergeToolArguments replaces non-string arguments", () => {
-  expect(mergeToolArguments({ a: 1 }, { b: 2 })).toEqual({ b: 2 });
+test("mergeToolArguments keeps whichever side is present", () => {
+  expect(mergeToolArguments(undefined, "x")).toBe("x");
+  expect(mergeToolArguments("x", undefined)).toBe("x");
+  expect(mergeToolArguments(undefined, undefined)).toBe("");
 });
 
-test("mergeToolCalls merges arguments of the same call", () => {
-  const merged = mergeToolCalls(
-    { id: "1", name: "t", arguments: '{"a":' },
-    { id: "1", name: "t", arguments: '{"a":1}' },
-  );
-
-  expect(merged).toEqual({ id: "1", name: "t", arguments: '{"a":1}' });
+test("mergeToolArguments restores fragments omw handed over parsed", () => {
+  expect(mergeToolArguments('{"limit":', 10)).toBe('{"limit":10');
+  expect(mergeToolArguments('{"ok":', true)).toBe('{"ok":true');
+  expect(mergeToolArguments('{"a":', { b: 2 })).toBe('{"a":{"b":2}');
 });
 
-test("mergeToolCalls throws when mixing different calls", () => {
-  expect(() =>
-    mergeToolCalls(
-      { id: "1", name: "t", arguments: "{}" },
-      { id: "2", name: "u", arguments: "{}" },
-    ),
-  ).toThrow();
+test("foldToolCalls groups fragments by index", () => {
+  const first = foldToolCalls(undefined, [
+    { index: 0, id: "1", name: "a", arguments: '{"x":' },
+    { index: 1, id: "2", name: "b", arguments: "{}" },
+  ]);
+  const second = foldToolCalls(first, [{ index: 0, arguments: "1}" }]);
+
+  expect(second).toEqual([
+    { id: "1", name: "a", arguments: '{"x":1}' },
+    { id: "2", name: "b", arguments: "{}" },
+  ]);
 });
 
-test("mergeToolCalls falls back to whichever side is present", () => {
-  const call = { id: "1", name: "t", arguments: "{}" };
+test("foldToolCalls reconstructs JSON across parsed fragments", () => {
+  const first = foldToolCalls(undefined, [
+    { index: 0, id: "1", name: "a", arguments: '{"limit":' },
+  ]);
+  const second = foldToolCalls(first, [{ index: 0, arguments: 10 }]);
+  const third = foldToolCalls(second, [{ index: 0, arguments: "}" }]);
 
-  expect(mergeToolCalls(undefined, call)).toEqual(call);
-  expect(mergeToolCalls(call, undefined)).toEqual(call);
-  expect(mergeToolCalls(undefined, undefined)).toBeUndefined();
+  expect(third).toEqual([{ id: "1", name: "a", arguments: '{"limit":10}' }]);
+  expect(JSON.parse(String(third[0].arguments))).toEqual({ limit: 10 });
+});
+
+test("parseToolArguments returns the value callTool expects", () => {
+  expect(parseToolArguments('{"input":"hi"}')).toEqual({ input: "hi" });
+  expect(parseToolArguments("")).toEqual({});
+  expect(parseToolArguments("   ")).toEqual({});
+  expect(parseToolArguments("{not json")).toEqual({});
+  expect(parseToolArguments(undefined)).toEqual({});
+});
+
+test("foldToolCalls returns the previous calls when there are no fragments", () => {
+  const calls = [{ id: "1", name: "a", arguments: "{}" }];
+
+  expect(foldToolCalls(calls, undefined)).toBe(calls);
+  expect(foldToolCalls(undefined, undefined)).toEqual([]);
 });

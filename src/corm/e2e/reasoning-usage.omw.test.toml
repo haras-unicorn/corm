@@ -21,6 +21,6 @@ events = [
   { kind = "inbound", event = "endpoint-message" },
   { kind = "call", op = "chat_stream" },
   { kind = "call", op = "stream_endpoint", detail = { reasoning = "^hmm$" } },
-  { kind = "call", op = "stream_endpoint", detail = { usage = { prompt_tokens = 3, completion_tokens = 5 } } },
+  { kind = "call", op = "stream_endpoint", detail = { usage = '"completion_tokens":5' } },
   { kind = "inbound", event = "chat-end" },
 ]

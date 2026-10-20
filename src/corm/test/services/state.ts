@@ -145,6 +145,38 @@ test("load restores a persisted disk state but resets the window system and turn
   );
 });
 
+test("load restores the last digest run from the persisted disk state", () => {
+  const saved = { digest: { last: 123 } };
+  const { manager } = makeManager({
+    memory: [[cormStateKey, JSON.stringify(saved)]],
+  });
+
+  expect(manager.load().disk.digest.last).toBe(123);
+});
+
+test("load resets the ephemeral digest timer and pending job", () => {
+  const { manager } = makeManager({
+    memory: [
+      [cormStateKey, JSON.stringify({ digest: { last: 123 } })],
+      [
+        cormSubscriptionsKey,
+        JSON.stringify({
+          subscriptions: {
+            lifecycle: "l",
+            endpoint: "e",
+            digest: { timer: "t", pending: "start" },
+          },
+        }),
+      ],
+    ],
+  });
+
+  const state = manager.load();
+
+  expect(state.memory.subscriptions.digest).toBeUndefined();
+  expect(state.disk.digest.last).toBe(123);
+});
+
 test("release persists disk and subscriptions to memory on reload", () => {
   const { manager, fake } = makeManager();
   manager.load();

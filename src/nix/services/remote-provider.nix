@@ -11,7 +11,7 @@
 
       model = lib.mkOption {
         type = lib.types.str;
-        default = "deepseek/deepseek-v4.1-flash";
+        default = "deepseek/deepseek-v4.1-flash-1017";
         description = "Corm remote provider OpenAI API model";
       };
     };

@@ -1,0 +1,40 @@
+# A daily digest starts immediately at startup when no previous run exists,
+# then turns into an ordinary tool-using turn: the RSS poll, the digest answer,
+# and the persisted last-run marker.
+#
+# Crucial: the digest prompt is a runtime message appended to the shared window,
+# the RSS result is fed back, and the completed digest is committed before the
+# schedule is re-armed.
+[memory.corm]
+corm_config = { digestCron = "0 0 8 * * *", digestFeeds = [
+  "https://example.test/feed",
+], digestStartNotice = "DIGEST START" }
+corm_state = {}
+
+[providers.gpu]
+turns = [
+  { tool_calls = [
+    { id = "call-1", name = "corm__rss__get_articles", arguments = '{"feeds":["https://example.test/feed"],"time_from":"2026-10-20T00:00:00Z"}' },
+  ] },
+  { content = "digest text" },
+]
+
+[tooling.rss]
+tool_calls = [
+  { name = "get_articles", result = '{"articles":[{"id":"a1","link":"https://example.test/a1","title":"A1","published":"2026-10-21T00:00:00Z"}]}' },
+]
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "user", content = "^⟦runtime⟧\\n\\nDIGEST START" },
+  ] } },
+  { kind = "call", op = "call_tool" },
+  { kind = "inbound", event = "tool-result" },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "tool", content = "articles" },
+  ] } },
+  { kind = "inbound", event = "chat-end" },
+  { kind = "call", op = "wait_cron" },
+]

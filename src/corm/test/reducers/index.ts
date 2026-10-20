@@ -35,8 +35,8 @@ test("an endpoint message is queued while a generation is active", () => {
 
   const effects = reduce(endpointMessage("s1"), state, config);
 
-  expect(kinds(effects)).toEqual(["enqueue-inbound"]);
-  expect(effects[0]).toMatchObject({ event: { kind: "endpoint-message" } });
+  expect(kinds(effects)).toEqual(["queue-notice", "enqueue-inbound"]);
+  expect(effects[1]).toMatchObject({ event: { kind: "endpoint-message" } });
 });
 
 test("an endpoint message is queued while a tool call is outstanding", () => {
@@ -44,6 +44,7 @@ test("an endpoint message is queued while a tool call is outstanding", () => {
   state.disk.turn.awaiting = { "call-1": { name: toolName, arguments: {} } };
 
   expect(kinds(reduce(endpointMessage("s1"), state, config))).toEqual([
+    "queue-notice",
     "enqueue-inbound",
   ]);
 });
@@ -94,7 +95,7 @@ test("chat end retries a tool call written as text", () => {
     assistantMessage(
       'see <tool_call>{"name":"echo"}</tool_call>',
       undefined,
-      undefined,
+      [],
       config,
     ),
   ];
@@ -116,7 +117,7 @@ test("chat end finishes once the text retry is exhausted", () => {
     assistantMessage(
       'see <tool_call>{"name":"echo"}</tool_call>',
       undefined,
-      undefined,
+      [],
       config,
     ),
   ];
@@ -127,14 +128,14 @@ test("chat end finishes once the text retry is exhausted", () => {
   ]);
 });
 
-test("chat end invokes an owned tool call", () => {
+test("chat end invokes the owned tool calls", () => {
   const state = makeState(config);
   state.disk.window.tools = [{ name: toolName }];
   state.disk.window.active = [
     assistantMessage(
       "",
       undefined,
-      { id: "call-1", name: toolName, arguments: "{}" },
+      [{ id: "call-1", name: toolName, arguments: "{}" }],
       config,
     ),
   ];
@@ -142,26 +143,52 @@ test("chat end invokes an owned tool call", () => {
 
   const effects = reduce(chatEnd("gen-1"), state, config);
 
-  expect(kinds(effects)).toEqual(["invoke-corm-tool"]);
-  expect(effects[0]).toMatchObject({ name: toolName, arguments: "{}" });
+  expect(kinds(effects)).toEqual(["invoke-corm-tools"]);
+  expect(effects[0]).toMatchObject({
+    calls: [{ name: toolName, arguments: "{}", toolCallId: "call-1" }],
+  });
 });
 
-test("chat end forwards a client tool call and finishes", () => {
+test("chat end rejects a call corm does not offer and re-prompts", () => {
   const state = makeState(config);
   state.disk.window.active = [
     assistantMessage(
       "",
       undefined,
-      { id: "c1", name: "client__thing", arguments: "{}" },
+      [{ id: "c1", name: "client__thing", arguments: "{}" }],
       config,
     ),
   ];
   state.memory.subscriptions.generation = "gen-1";
 
+  const effects = reduce(chatEnd("gen-1"), state, config);
+
+  expect(kinds(effects)).toEqual([
+    "invoke-corm-tools",
+    "start-chat-generation",
+  ]);
+  expect(effects[0]).toMatchObject({
+    calls: [],
+    rejected: [{ name: "client__thing", arguments: "{}", toolCallId: "c1" }],
+  });
+});
+
+test("chat end gives up re-prompting after too many rejected calls", () => {
+  const state = makeState(config);
+  state.disk.window.active = [
+    assistantMessage(
+      "",
+      undefined,
+      [{ id: "c1", name: "client__thing", arguments: "{}" }],
+      config,
+    ),
+  ];
+  state.memory.subscriptions.generation = "gen-1";
+  state.disk.turn.toolCallRetries = config.toolCallRetryLimit ?? 3;
+
   expect(kinds(reduce(chatEnd("gen-1"), state, config))).toEqual([
-    "forward-client-tool-call",
+    "invoke-corm-tools",
     "stream-endpoint-delta",
-    "clear-generation",
   ]);
 });
 
@@ -172,6 +199,51 @@ test("an awaited tool result appends and re-prompts", () => {
   expect(kinds(reduce(toolResultEvent("call-1", "hi"), state, config))).toEqual(
     ["append-tool-result", "start-chat-generation"],
   );
+});
+
+test("a multi-tool turn awaits every result before re-prompting", () => {
+  const state = makeState(config);
+  state.disk.turn.awaiting = {
+    "call-1": { name: toolName, arguments: {} },
+    "call-2": { name: toolName, arguments: {} },
+  };
+
+  expect(kinds(reduce(toolResultEvent("call-1", "a"), state, config))).toEqual([
+    "append-tool-result",
+  ]);
+
+  delete state.disk.turn.awaiting["call-1"];
+  expect(kinds(reduce(toolResultEvent("call-2", "b"), state, config))).toEqual([
+    "append-tool-result",
+    "start-chat-generation",
+  ]);
+});
+
+test("chat end invokes every owned tool call in the turn", () => {
+  const state = makeState(config);
+  state.disk.window.tools = [{ name: toolName }];
+  state.disk.window.active = [
+    assistantMessage(
+      "",
+      undefined,
+      [
+        { id: "call-1", name: toolName, arguments: '{"input":"a"}' },
+        { id: "call-2", name: toolName, arguments: '{"input":"b"}' },
+      ],
+      config,
+    ),
+  ];
+  state.memory.subscriptions.generation = "gen-1";
+
+  const effects = reduce(chatEnd("gen-1"), state, config);
+
+  expect(kinds(effects)).toEqual(["invoke-corm-tools"]);
+  expect(effects[0]).toMatchObject({
+    calls: [
+      { name: toolName, toolCallId: "call-1" },
+      { name: toolName, toolCallId: "call-2" },
+    ],
+  });
 });
 
 test("a repeated tool call trips the circuit breaker", () => {
@@ -196,6 +268,7 @@ test("a tool result with no awaited call is dropped", () => {
 test("a session end cancels the open generation", () => {
   const state = makeState(config);
   state.memory.subscriptions.generation = "gen-1";
+  state.disk.window.session = "s1";
 
   const event: OmwEvent = {
     id: "e",
@@ -204,6 +277,20 @@ test("a session end cancels the open generation", () => {
   };
 
   expect(kinds(reduce(event, state, config))).toEqual(["cancel-generation"]);
+});
+
+test("a session end does not cancel a background generation", () => {
+  const state = makeState(config);
+  state.memory.subscriptions.generation = "gen-1";
+  state.disk.window.session = "";
+
+  const event: OmwEvent = {
+    id: "e",
+    kind: "endpoint-session-end",
+    payload: { session: "s1" },
+  };
+
+  expect(kinds(reduce(event, state, config))).toEqual(["noop"]);
 });
 
 test("unhandled events are dropped as a noop", () => {
@@ -333,7 +420,7 @@ test("a tool error becomes a tool message and re-prompts", () => {
   ]);
   expect(effects[0]).toMatchObject({
     id: "call-1",
-    result: { content: [{ text: "Tool error: boom" }] },
+    result: { content: [{ text: "boom" }] },
   });
 });
 

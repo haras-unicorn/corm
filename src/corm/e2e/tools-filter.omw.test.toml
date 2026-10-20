@@ -1,11 +1,13 @@
 # The configured `tools` subset gates what the model is offered: an empty subset
-# exposes no tools, so a `corm__*` call a tooling owns is not recognized and is
-# forwarded to the client instead of being executed by corm.
+# exposes no tools, so a `corm__*` call corm does not offer is not executed and is
+# not handed to the client either. corm answers it with an error `tool`
+# message and re-prompts the model once.
 #
 # Crucial: with `tools = []` the same `corm__filesystem__echo` call that
-# `tool.omw.test.toml` would execute (a `call_tool`) instead reaches the endpoint
-# as a forwarded tool call (`stream_endpoint`), proving the subset filters the
-# window's tool list rather than merely annotating it.
+# `tool.omw.test.toml` would execute (a `call_tool`) instead produces a second
+# `chat_stream` carrying an error `tool` message -- proving the subset filters
+# the window's tool list rather than merely annotating it, and that no call ever
+# reaches the endpoint client.
 [endpoint]
 requests = [
   { model = "corm", session_id = "corm", messages = [
@@ -15,7 +17,10 @@ requests = [
 
 [providers.gpu]
 turns = [
-  { tool_call = { id = "call-1", name = "corm__filesystem__echo", arguments = '{"input":"hi"}' } },
+  { tool_calls = [
+    { id = "call-1", name = "corm__filesystem__echo", arguments = '{"input":"hi"}' },
+  ] },
+  { content = "done" },
 ]
 
 [memory.corm]
@@ -31,6 +36,8 @@ outcome = "asserted"
 events = [
   { kind = "inbound", event = "endpoint-message" },
   { kind = "call", op = "chat_stream" },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "tool", content = '^Tool error \(corm__filesystem__echo #call-1\):' },
+  ] } },
   { kind = "inbound", event = "chat-end" },
-  { kind = "call", op = "stream_endpoint" },
 ]

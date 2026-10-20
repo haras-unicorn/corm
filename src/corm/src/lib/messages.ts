@@ -18,7 +18,7 @@ import {
 } from "./defaults";
 import { frame } from "./framing";
 import { estimateMessageTokens, messageDigest } from "./tokens";
-import { mergeToolCalls } from "./tools";
+import { foldToolCalls } from "./tools";
 
 const rate = (config: CormConfig): [number, number] => [
   config.charsPerToken ?? CORM_DEFAULT_CHARS_PER_TOKEN,
@@ -56,26 +56,32 @@ export const userMessage = (
 export const assistantMessage = (
   content: string,
   reasoning: string | undefined,
-  toolCall: CormOmwToolCall | undefined,
+  toolCalls: CormOmwToolCall[],
   config: CormConfig,
 ): CormAssistantMessage => {
-  const message = { role: "assistant", content, reasoning, toolCall } as const;
+  const message = {
+    role: "assistant",
+    content,
+    reasoning,
+    toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+  } as const;
   return {
     ...base(message, config),
     role: "assistant",
     content,
     reasoning,
-    toolCall,
+    toolCalls,
     deltas: [],
   };
 };
 
 export const toolMessage = (
   content: string,
+  toolCallId: string | undefined,
   config: CormConfig,
 ): CormToolMessage => {
-  const message = { role: "tool", content } as const;
-  return { ...base(message, config), role: "tool", content };
+  const message = { role: "tool", content, toolCallId } as const;
+  return { ...base(message, config), role: "tool", content, toolCallId };
 };
 
 export const foldAssistant = (
@@ -85,12 +91,12 @@ export const foldAssistant = (
 ): CormAssistantMessage => {
   const content = (previous?.content ?? "") + (delta.content ?? "");
   const reasoning = (previous?.reasoning ?? "") + (delta.reasoning ?? "");
-  const toolCall = mergeToolCalls(previous?.toolCall, delta.toolCall);
+  const toolCalls = foldToolCalls(previous?.toolCalls, delta.toolCalls);
 
   const next = assistantMessage(
     content,
     reasoning === "" ? undefined : reasoning,
-    toolCall,
+    toolCalls,
     config,
   );
   next.deltas = [...(previous?.deltas ?? []), delta];
@@ -120,9 +126,6 @@ export const clientDelta = (delta: CormOmwChatDelta): CormOmwChatDelta => {
   }
   if (delta.reasoning !== undefined) {
     visible.reasoning = delta.reasoning;
-  }
-  if (delta.toolCall !== undefined) {
-    visible.toolCall = delta.toolCall;
   }
   if (delta.usage !== undefined) {
     visible.usage = delta.usage;

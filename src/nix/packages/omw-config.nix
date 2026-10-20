@@ -3,7 +3,7 @@
 {
   corm.lib.openrouter = {
     baseUrl = "https://openrouter.ai/api/v1";
-    model = "deepseek/deepseek-v4.1-flash";
+    model = "deepseek/deepseek-v4.1-flash-1017";
   };
 
   flake.overlays.omw-config =

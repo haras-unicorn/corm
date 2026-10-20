@@ -66,13 +66,35 @@ only caps it). Providers are tried in `gpu`, `cpu`, `remote` order:
     # ... and/or a remote OpenAI-compatible provider
     remote-provider.enable = true;
     remote-provider.baseUrl = "https://openrouter.ai/api/v1";
-    remote-provider.model = "deepseek/deepseek-v4.1-flash";
+    remote-provider.model = "deepseek/deepseek-v4.1-flash-1017";
   };
 }
 ```
 
 The enabled toolings (`nixos`, `nix`, `git`, `github`, `rss`, `plan`,
 `filesystem`) run as sandboxed MCP servers under `corm.omw`.
+
+### Daily digest
+
+Corm can run a daily RSS/Atom digest as a background turn. The job polls the
+configured feeds with the `rss` tooling (`corm__rss__get_articles`) and
+summarizes what is new since the previous run:
+
+```nix
+{
+  corm.settings.digestCron = "0 0 8 * * *";
+  corm.settings.digestFeeds = [ "https://example.com/feed.xml" ];
+}
+```
+
+`digestCron` uses a six-field cron (seconds first); set it to `true` to disable
+the job. The last successful run is persisted with the agent's task state, so a
+missing or stale run starts immediately at startup instead of waiting for the
+next cron fire. `digestMaxAgeMs` (default 24h) is the catch-up threshold and
+`digestMinGapMs` (default 12h) suppresses a duplicate fire shortly after a
+catch-up. A digest is an append-only `⟦runtime⟧` turn in the shared window; an
+endpoint message that arrives while it streams preempts it, is answered
+immediately, and the digest then resumes.
 
 ## Secrets
 

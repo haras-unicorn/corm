@@ -21,7 +21,7 @@ test("estimateTextTokens rounds up and treats empty text as zero", () => {
   expect(estimateTextTokens("abcde", RATE)).toBe(2);
 });
 
-test("estimateMessageTokens counts content, reasoning and the tool call", () => {
+test("estimateMessageTokens counts content, reasoning and the tool calls", () => {
   expect(estimateMessageTokens({ content: "abcd" }, RATE, OVERHEAD)).toBe(5);
   expect(
     estimateMessageTokens(
@@ -32,13 +32,13 @@ test("estimateMessageTokens counts content, reasoning and the tool call", () => 
   ).toBe(6);
   expect(
     estimateMessageTokens(
-      { toolCall: { id: "1", name: "t", arguments: { a: 1 } } },
+      { toolCalls: [{ id: "1", name: "t", arguments: { a: 1 } }] },
       RATE,
       OVERHEAD,
     ),
   ).toBe(
     OVERHEAD +
-      estimateTextTokens('{"id":"1","name":"t","arguments":{"a":1}}', RATE),
+      estimateTextTokens('[{"id":"1","name":"t","arguments":{"a":1}}]', RATE),
   );
 });
 
@@ -87,7 +87,7 @@ test("messageDigest is stable and content-sensitive", () => {
   expect(messageDigest(base)).not.toBe(
     messageDigest({ ...base, content: "yo" }),
   );
-  expect(messageDigest(base)).not.toBe(
+  expect(messageDigest(base)).toBe(
     messageDigest({ ...base, reasoning: "why" }),
   );
   expect(messageDigest(base)).not.toBe(

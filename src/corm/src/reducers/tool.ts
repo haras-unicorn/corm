@@ -5,24 +5,12 @@ import {
   CORM_DEFAULT_CIRCUIT_BREAKER_LIMIT,
 } from "../lib/defaults";
 import { toolCallKey } from "../lib/tokens";
+import { errorToolResult } from "../lib/tools";
 import { overSoft } from "../lib/window";
 import type { CormAction } from "../types/action";
 import type { CormConfig } from "../types/config";
 import type { CormState } from "../types/state";
-import type { CormPendingToolCall } from "../types/turn";
 import { dropped } from "./dropped";
-
-// The tool's error is fed back to the model as an ordinary `tool` message so it
-// can recover instead of failing the turn.
-const errorResult = (
-  pending: CormPendingToolCall,
-  message: string,
-): ToolResult =>
-  ({
-    name: pending.name,
-    arguments: pending.arguments,
-    content: [{ type: "text", text: `Tool error: ${message}` }],
-  }) as ToolResult;
 
 export const toolReducer = (
   action: CormAction,
@@ -44,43 +32,72 @@ export const toolReducer = (
 
   const result =
     action.kind === "error"
-      ? errorResult(pending, action.payload)
+      ? errorToolResult(pending.name, pending.arguments, action.payload)
       : action.payload;
+
+  const settle = {
+    kind: "append-tool-result",
+    id: action.id,
+    result,
+    toolCallId: pending.toolCallId,
+  } as const;
+
+  // A turn may await several tool calls: only the last one to settle starts the
+  // next generation, so every result is in the window before the model is asked
+  // to continue.
+  const awaited = Object.keys(state.disk.turn.awaiting).length;
+  if (awaited > 1) {
+    return approveEffects(state, action, settle);
+  }
 
   const limit =
     config.circuitBreakerLimit ?? CORM_DEFAULT_CIRCUIT_BREAKER_LIMIT;
   const count =
     state.disk.turn.toolCalls[toolCallKey(pending.name, pending.arguments)];
 
+  const flush = state.disk.notices.length > 0;
+
   if (count !== undefined && count >= limit) {
-    return approveEffects(
-      state,
-      action,
-      {
-        kind: "append-tool-result",
-        id: action.id,
-        result,
-      },
-      {
-        kind: "circuit-break",
-        hint: config.circuitBreakerHint ?? CORM_DEFAULT_CIRCUIT_BREAKER_HINT,
-      },
-      overSoft(state.disk.window, config)
-        ? { kind: "start-compaction-generation", resume: true }
-        : { kind: "start-chat-generation" },
-    );
+    const hint = {
+      kind: "circuit-break",
+      hint: config.circuitBreakerHint ?? CORM_DEFAULT_CIRCUIT_BREAKER_HINT,
+    } as const;
+
+    if (overSoft(state.disk.window, config)) {
+      return approveEffects(state, action, settle, hint, {
+        kind: "start-compaction-generation",
+        resume: true,
+      });
+    }
+
+    return flush
+      ? approveEffects(
+          state,
+          action,
+          settle,
+          hint,
+          { kind: "flush-notices" },
+          { kind: "start-chat-generation" },
+        )
+      : approveEffects(state, action, settle, hint, {
+          kind: "start-chat-generation",
+        });
   }
 
-  return approveEffects(
-    state,
-    action,
-    {
-      kind: "append-tool-result",
-      id: action.id,
-      result,
-    },
-    overSoft(state.disk.window, config)
-      ? { kind: "start-compaction-generation", resume: true }
-      : { kind: "start-chat-generation" },
-  );
+  if (overSoft(state.disk.window, config)) {
+    return approveEffects(state, action, settle, {
+      kind: "start-compaction-generation",
+      resume: true,
+    });
+  }
+
+  return flush
+    ? approveEffects(
+        state,
+        action,
+        settle,
+        { kind: "flush-notices" },
+        { kind: "start-chat-generation" },
+      )
+    : approveEffects(state, action, settle, { kind: "start-chat-generation" });
 };

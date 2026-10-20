@@ -1,6 +1,16 @@
 import type { CormAction } from "../types/action";
 import type { CormState } from "../types/state";
 import type {
+  CormArmDigestTimerEffect,
+  CormArmDigestTimerEffectRule,
+  CormCommitDigestEffect,
+  CormCommitDigestEffectRule,
+  CormQueueDigestEffect,
+  CormQueueDigestEffectRule,
+  CormStartDigestEffect,
+  CormStartDigestEffectRule,
+} from "./digest";
+import type {
   CormCancelGenerationEffect,
   CormCancelGenerationEffectRule,
   CormCircuitBreakEffect,
@@ -9,10 +19,8 @@ import type {
   CormClearGenerationEffectRule,
   CormCommitCompactionEffect,
   CormCommitCompactionEffectRule,
-  CormForwardClientToolCallEffect,
-  CormForwardClientToolCallEffectRule,
-  CormInvokeCormToolEffect,
-  CormInvokeCormToolEffectRule,
+  CormInvokeCormToolsEffect,
+  CormInvokeCormToolsEffectRule,
   CormRetryTextToolCallEffect,
   CormRetryTextToolCallEffectRule,
   CormStartChatGenerationEffect,
@@ -38,6 +46,10 @@ import type {
   CormAppendToolResultEffectRule,
   CormEnqueueInboundEffect,
   CormEnqueueInboundEffectRule,
+  CormFlushNoticesEffect,
+  CormFlushNoticesEffectRule,
+  CormQueueNoticeEffect,
+  CormQueueNoticeEffectRule,
   CormSetActiveRequestEffect,
   CormSetActiveRequestEffectRule,
 } from "./window";
@@ -53,8 +65,7 @@ export type CormEffect =
   | CormCommitCompactionEffect
   | CormCancelGenerationEffect
   | CormClearGenerationEffect
-  | CormInvokeCormToolEffect
-  | CormForwardClientToolCallEffect
+  | CormInvokeCormToolsEffect
   | CormRetryTextToolCallEffect
   | CormCircuitBreakEffect
   | CormSetActiveRequestEffect
@@ -65,6 +76,12 @@ export type CormEffect =
   | CormAppendToolResultEffect
   | CormFoldChatDeltaEffect
   | CormStreamEndpointDeltaEffect
+  | CormArmDigestTimerEffect
+  | CormStartDigestEffect
+  | CormQueueDigestEffect
+  | CormCommitDigestEffect
+  | CormQueueNoticeEffect
+  | CormFlushNoticesEffect
   | CormNoopEffect
   | never;
 
@@ -75,8 +92,7 @@ type CormEffectRuleByKind = {
   "commit-compaction": CormCommitCompactionEffectRule;
   "cancel-generation": CormCancelGenerationEffectRule;
   "clear-generation": CormClearGenerationEffectRule;
-  "invoke-corm-tool": CormInvokeCormToolEffectRule;
-  "forward-client-tool-call": CormForwardClientToolCallEffectRule;
+  "invoke-corm-tools": CormInvokeCormToolsEffectRule;
   "retry-text-tool-call": CormRetryTextToolCallEffectRule;
   "circuit-break": CormCircuitBreakEffectRule;
   "set-active-request": CormSetActiveRequestEffectRule;
@@ -87,6 +103,12 @@ type CormEffectRuleByKind = {
   "append-tool-result": CormAppendToolResultEffectRule;
   "fold-chat-delta": CormFoldChatDeltaEffectRule;
   "stream-endpoint-delta": CormStreamEndpointDeltaEffectRule;
+  "arm-digest-timer": CormArmDigestTimerEffectRule;
+  "start-digest": CormStartDigestEffectRule;
+  "queue-digest": CormQueueDigestEffectRule;
+  "commit-digest": CormCommitDigestEffectRule;
+  "queue-notice": CormQueueNoticeEffectRule;
+  "flush-notices": CormFlushNoticesEffectRule;
   noop: CormNoopEffectRule;
 };
 

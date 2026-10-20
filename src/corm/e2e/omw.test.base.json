@@ -59,6 +59,7 @@
         {
           "description": "Read the complete contents of a file as text. DEPRECATED: Use read_text_file instead.",
           "name": "read_file",
+          "title": "Read File (Deprecated)",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -93,6 +94,7 @@
         {
           "description": "Read the complete contents of a file from the file system as text. Handles various text encodings and provides detailed error messages if the file cannot be read. Use this tool when you need to examine the contents of a single file. Use the 'head' parameter to read only the first N lines of a file, or the 'tail' parameter to read only the last N lines of a file. Operates on the file as text regardless of extension. Only works within allowed directories.",
           "name": "read_text_file",
+          "title": "Read Text File",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -127,6 +129,7 @@
         {
           "description": "Read an image or audio file. Returns the base64 encoded data and MIME type. Only works within allowed directories.",
           "name": "read_media_file",
+          "title": "Read Media File",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -170,6 +173,7 @@
         {
           "description": "Read the contents of multiple files simultaneously. This is more efficient than reading files one by one when you need to analyze or compare multiple files. Each file's content is returned with its path as a reference. Failed reads for individual files won't stop the entire operation. Only works within allowed directories.",
           "name": "read_multiple_files",
+          "title": "Read Multiple Files",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -201,6 +205,7 @@
         {
           "description": "Create a new file or completely overwrite an existing file with new content. Use with caution as it will overwrite existing files without warning. Handles text content with proper encoding. Only works within allowed directories.",
           "name": "write_file",
+          "title": "Write File",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -230,6 +235,7 @@
         {
           "description": "Make line-based edits to a text file. Each edit replaces exact line sequences with new content. Returns a git-style diff showing the changes made. Only works within allowed directories.",
           "name": "edit_file",
+          "title": "Edit File",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -279,6 +285,7 @@
         {
           "description": "Create a new directory or ensure a directory exists. Can create multiple nested directories in one operation. If the directory already exists, this operation will succeed silently. Perfect for setting up directory structures for projects or ensuring required paths exist. Only works within allowed directories.",
           "name": "create_directory",
+          "title": "Create Directory",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -305,6 +312,7 @@
         {
           "description": "Get a detailed listing of all files and directories in a specified path. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is essential for understanding directory structure and finding specific files within a directory. Only works within allowed directories.",
           "name": "list_directory",
+          "title": "List Directory",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -331,6 +339,7 @@
         {
           "description": "Get a detailed listing of all files and directories in a specified path, including sizes. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is useful for understanding directory structure and finding specific files within a directory. Only works within allowed directories.",
           "name": "list_directory_with_sizes",
+          "title": "List Directory with Sizes",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -363,6 +372,7 @@
         {
           "description": "Get a recursive tree view of files and directories as a JSON structure. Each entry includes 'name', 'type' (file/directory), and 'children' for directories. Files have no children array, while directories always have a children array (which may be empty). The output is formatted with 2-space indentation for readability. Only works within allowed directories.",
           "name": "directory_tree",
+          "title": "Directory Tree",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -396,6 +406,7 @@
         {
           "description": "Move or rename files and directories. Can move files between directories and rename them in a single operation. If the destination exists, the operation will fail. Works across different directories and can be used for simple renaming within the same directory. Both source and destination must be within allowed directories.",
           "name": "move_file",
+          "title": "Move File",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -425,6 +436,7 @@
         {
           "description": "Recursively search for files and directories matching a pattern. The patterns should be glob-style patterns that match paths relative to the working directory. Use pattern like '*.ext' to match files in current directory, and '**/*.ext' to match files in all subdirectories. Returns full paths to all matching items. Great for finding files when you don't know their exact location. Only searches within allowed directories.",
           "name": "search_files",
+          "title": "Search Files",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -461,6 +473,7 @@
         {
           "description": "Retrieve detailed metadata about a file or directory. Returns comprehensive information including size, creation time, last modified time, permissions, and type. This tool is perfect for understanding file characteristics without reading the actual content. Only works within allowed directories.",
           "name": "get_file_info",
+          "title": "Get File Info",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -487,6 +500,7 @@
         {
           "description": "Returns the list of directories that this server is allowed to access. Subdirectories within these allowed directories are also accessible. Use this to understand which directories and their nested paths are available before trying to access files.",
           "name": "list_allowed_directories",
+          "title": "List Allowed Directories",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",
@@ -515,6 +529,7 @@
         {
           "description": "Stage files for commit. Add file contents to the staging area (index) to prepare for the next commit.",
           "name": "git_add",
+          "title": "Git Add",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -639,6 +654,7 @@
         {
           "description": "Show line-by-line authorship information for a file, displaying who last modified each line and when. For large files, use startLine/endLine to limit output.",
           "name": "git_blame",
+          "title": "Git Blame",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -741,6 +757,7 @@
         {
           "description": "Manage branches: list all branches, show current branch, create a new branch, delete a branch, or rename a branch.",
           "name": "git_branch",
+          "title": "Git Branch",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -892,6 +909,7 @@
         {
           "description": "Gather git history context (commits, tags) and structured review instructions to support LLM-driven changelog analysis. Changelog file should be read separately; this tool provides the supporting git data and analysis framework. Pass one or more review types to control what kind of analysis to perform.",
           "name": "git_changelog_analyze",
+          "title": "Git Changelog Analyze",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -1079,6 +1097,7 @@
         {
           "description": "Switch branches or restore working tree files. Can checkout an existing branch, create a new branch, or restore specific files.",
           "name": "git_checkout",
+          "title": "Git Checkout",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -1161,6 +1180,7 @@
         {
           "description": "Cherry-pick commits from other branches. Apply specific commits to the current branch without merging entire branches.",
           "name": "git_cherry_pick",
+          "title": "Git Cherry-Pick",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -1258,6 +1278,7 @@
         {
           "description": "Remove untracked files from the working directory. Requires force flag for safety. Use dry-run to preview files that would be removed.",
           "name": "git_clean",
+          "title": "Git Clean",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -1329,6 +1350,7 @@
         {
           "description": "Clear the session working directory setting. This resets the context without restarting the server. Subsequent git operations will require an explicit path parameter unless git_set_working_dir is called again.",
           "name": "git_clear_working_dir",
+          "title": "Git Clear Working Directory",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -1366,6 +1388,7 @@
         {
           "description": "Clone a repository from a remote URL or local path. Accepts HTTP(S), SSH, git://, file://, and bare filesystem paths, with optional shallow cloning.",
           "name": "git_clone",
+          "title": "Git Clone",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -1436,6 +1459,7 @@
         {
           "description": "Create a new commit with staged changes in the repository. Records a snapshot of the staging area with a commit message.\n\n**Commit Message Format:**\nPass commit messages as JSON string parameters. Multi-line messages are supported using standard JSON string escaping.\n\n**Examples:**\n- Single line: { \"message\": \"feat: add user authentication\" }\n- Multi-line: { \"message\": \"feat: add user authentication\\n\\nImplemented OAuth2 flow with JWT tokens.\\nAdded tests for login and logout.\" }\n\nNote: Do not use bash heredoc syntax. Literal escape sequences (\\n, \\t) in the message string are automatically normalized to their actual characters.",
           "name": "git_commit",
+          "title": "Git Commit",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -1630,6 +1654,7 @@
         {
           "description": "View differences between commits, branches, or working tree. Shows changes in unified diff format.",
           "name": "git_diff",
+          "title": "Git Diff",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -1736,6 +1761,7 @@
         {
           "description": "Fetch updates from a remote repository. Downloads objects and refs without merging them.",
           "name": "git_fetch",
+          "title": "Git Fetch",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -1805,6 +1831,7 @@
         {
           "description": "Initialize a new Git repository at the specified path. Creates a .git directory and sets up the initial branch.",
           "name": "git_init",
+          "title": "Git Init",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -1854,6 +1881,7 @@
         {
           "description": "View commit history with optional filtering by author, date range, file path, or commit message pattern.",
           "name": "git_log",
+          "title": "Git Log",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -2013,6 +2041,7 @@
         {
           "description": "Merge branches together. Integrates changes from another branch into the current branch with optional merge strategies.",
           "name": "git_merge",
+          "title": "Git Merge",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -2113,6 +2142,7 @@
         {
           "description": "Pull changes from a remote repository. Fetches and integrates changes into the current branch.",
           "name": "git_pull",
+          "title": "Git Pull",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -2204,6 +2234,7 @@
         {
           "description": "Push changes to a remote repository. Uploads local commits to the remote branch.",
           "name": "git_push",
+          "title": "Git Push",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -2321,6 +2352,7 @@
         {
           "description": "Rebase commits onto another branch. Reapplies commits on top of another base tip for a cleaner history.",
           "name": "git_rebase",
+          "title": "Git Rebase",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -2410,6 +2442,7 @@
         {
           "description": "View the reference logs (reflog) to track when branch tips and other references were updated. Useful for recovering lost commits.",
           "name": "git_reflog",
+          "title": "Git Reflog",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -2499,6 +2532,7 @@
         {
           "description": "Manage remote repositories: list remotes, add new remotes, remove remotes, rename remotes, or get/set remote URLs.",
           "name": "git_remote",
+          "title": "Git Remote",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -2627,6 +2661,7 @@
         {
           "description": "Reset current HEAD to specified state. Can be used to unstage files (soft), discard commits (mixed), or discard all changes (hard).",
           "name": "git_reset",
+          "title": "Git Reset",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -2698,6 +2733,7 @@
         {
           "description": "Set the session working directory for all git operations so subsequent calls can omit the path parameter. Always returns a repository snapshot (status, recent commits, recent tags, remotes) to orient the caller.",
           "name": "git_set_working_dir",
+          "title": "Git Set Working Directory",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -2919,6 +2955,7 @@
         {
           "description": "Show details of a git object (commit, tree, blob, or tag). Displays commit information and the diff of changes introduced.",
           "name": "git_show",
+          "title": "Git Show",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -2988,6 +3025,7 @@
         {
           "description": "Manage stashes: list stashes, save current changes (push), restore changes (pop/apply), or remove stashes (drop/clear).",
           "name": "git_stash",
+          "title": "Git Stash",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -3107,6 +3145,7 @@
         {
           "description": "Show the working tree status including staged, unstaged, and untracked files.",
           "name": "git_status",
+          "title": "Git Status",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -3263,6 +3302,7 @@
         {
           "description": "Manage tags: list all tags, create a new tag, delete a tag, or verify a signed tag. Tags are used to mark specific points in history (releases, milestones). Verify runs `git tag -v` and returns a structured result distinguishing unsigned tags, missing trust configuration, bad signatures, and valid signatures.",
           "name": "git_tag",
+          "title": "Git Tag",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -3415,6 +3455,7 @@
         {
           "description": "Manage multiple working trees: list worktrees, add new worktrees for parallel work, remove worktrees, or move worktrees to new locations.",
           "name": "git_worktree",
+          "title": "Git Worktree",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -3568,6 +3609,7 @@
         {
           "description": "Returns a Git wrap-up protocol: an acceptance-criteria checklist the agent must satisfy before the session is considered shipped. Uses the operator's custom instructions if configured, otherwise emits a generic goals-strict/mechanism-generic default. Enriches the response with a repository snapshot (status, recent commits, recent tags) so the agent has immediate orientation for the commit and release steps.",
           "name": "git_wrapup_instructions",
+          "title": "Git Wrap-up Instructions",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -6085,6 +6127,7 @@
         {
           "description": "Read the complete contents of a file as text. DEPRECATED: Use read_text_file instead.",
           "name": "read_file",
+          "title": "Read File (Deprecated)",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -6119,6 +6162,7 @@
         {
           "description": "Read the complete contents of a file from the file system as text. Handles various text encodings and provides detailed error messages if the file cannot be read. Use this tool when you need to examine the contents of a single file. Use the 'head' parameter to read only the first N lines of a file, or the 'tail' parameter to read only the last N lines of a file. Operates on the file as text regardless of extension. Only works within allowed directories.",
           "name": "read_text_file",
+          "title": "Read Text File",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -6153,6 +6197,7 @@
         {
           "description": "Read an image or audio file. Returns the base64 encoded data and MIME type. Only works within allowed directories.",
           "name": "read_media_file",
+          "title": "Read Media File",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -6196,6 +6241,7 @@
         {
           "description": "Read the contents of multiple files simultaneously. This is more efficient than reading files one by one when you need to analyze or compare multiple files. Each file's content is returned with its path as a reference. Failed reads for individual files won't stop the entire operation. Only works within allowed directories.",
           "name": "read_multiple_files",
+          "title": "Read Multiple Files",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -6227,6 +6273,7 @@
         {
           "description": "Create a new file or completely overwrite an existing file with new content. Use with caution as it will overwrite existing files without warning. Handles text content with proper encoding. Only works within allowed directories.",
           "name": "write_file",
+          "title": "Write File",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -6256,6 +6303,7 @@
         {
           "description": "Make line-based edits to a text file. Each edit replaces exact line sequences with new content. Returns a git-style diff showing the changes made. Only works within allowed directories.",
           "name": "edit_file",
+          "title": "Edit File",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -6305,6 +6353,7 @@
         {
           "description": "Create a new directory or ensure a directory exists. Can create multiple nested directories in one operation. If the directory already exists, this operation will succeed silently. Perfect for setting up directory structures for projects or ensuring required paths exist. Only works within allowed directories.",
           "name": "create_directory",
+          "title": "Create Directory",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -6331,6 +6380,7 @@
         {
           "description": "Get a detailed listing of all files and directories in a specified path. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is essential for understanding directory structure and finding specific files within a directory. Only works within allowed directories.",
           "name": "list_directory",
+          "title": "List Directory",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -6357,6 +6407,7 @@
         {
           "description": "Get a detailed listing of all files and directories in a specified path, including sizes. Results clearly distinguish between files and directories with [FILE] and [DIR] prefixes. This tool is useful for understanding directory structure and finding specific files within a directory. Only works within allowed directories.",
           "name": "list_directory_with_sizes",
+          "title": "List Directory with Sizes",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -6389,6 +6440,7 @@
         {
           "description": "Get a recursive tree view of files and directories as a JSON structure. Each entry includes 'name', 'type' (file/directory), and 'children' for directories. Files have no children array, while directories always have a children array (which may be empty). The output is formatted with 2-space indentation for readability. Only works within allowed directories.",
           "name": "directory_tree",
+          "title": "Directory Tree",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -6422,6 +6474,7 @@
         {
           "description": "Move or rename files and directories. Can move files between directories and rename them in a single operation. If the destination exists, the operation will fail. Works across different directories and can be used for simple renaming within the same directory. Both source and destination must be within allowed directories.",
           "name": "move_file",
+          "title": "Move File",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -6451,6 +6504,7 @@
         {
           "description": "Recursively search for files and directories matching a pattern. The patterns should be glob-style patterns that match paths relative to the working directory. Use pattern like '*.ext' to match files in current directory, and '**/*.ext' to match files in all subdirectories. Returns full paths to all matching items. Great for finding files when you don't know their exact location. Only searches within allowed directories.",
           "name": "search_files",
+          "title": "Search Files",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -6487,6 +6541,7 @@
         {
           "description": "Retrieve detailed metadata about a file or directory. Returns comprehensive information including size, creation time, last modified time, permissions, and type. This tool is perfect for understanding file characteristics without reading the actual content. Only works within allowed directories.",
           "name": "get_file_info",
+          "title": "Get File Info",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "additionalProperties": false,
@@ -6513,6 +6568,7 @@
         {
           "description": "Returns the list of directories that this server is allowed to access. Subdirectories within these allowed directories are also accessible. Use this to understand which directories and their nested paths are available before trying to access files.",
           "name": "list_allowed_directories",
+          "title": "List Allowed Directories",
           "input_schema": {
             "$schema": "http://json-schema.org/draft-07/schema#",
             "type": "object",

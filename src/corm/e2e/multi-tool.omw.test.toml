@@ -1,0 +1,45 @@
+# A single assistant turn may call several tools at once. corm invokes them all,
+# appends every result, and only re-prompts the model once the whole awaited set
+# has settled.
+#
+# Crucial: one provider turn carries two tool calls, both are run, both results
+# land in the window, and the provider is re-called exactly once (the second
+# chat_stream) with both results present.
+[endpoint]
+requests = [
+  { model = "corm", session_id = "corm", messages = [
+    { content = "use both" },
+  ] },
+]
+
+[providers.gpu]
+turns = [
+  { tool_calls = [
+    { id = "call-1", name = "corm__filesystem__echo", arguments = '{"input":"a"}' },
+    { id = "call-2", name = "corm__filesystem__echo", arguments = '{"input":"b"}' },
+  ] },
+  { content = "done" },
+]
+
+[memory.corm]
+corm_state = {}
+
+[tooling.filesystem]
+tools = [{ name = "echo", description = "echo back", input_schema = {} }]
+tool_calls = [{ name = "echo", result = "a" }, { name = "echo", result = "b" }]
+
+[assertions.corm]
+outcome = "asserted"
+events = [
+  { kind = "inbound", event = "endpoint-message" },
+  { kind = "call", op = "chat_stream" },
+  { kind = "call", op = "call_tool" },
+  { kind = "call", op = "call_tool" },
+  { kind = "inbound", event = "tool-result" },
+  { kind = "inbound", event = "tool-result" },
+  { kind = "call", op = "chat_stream", detail = { messages = [
+    { role = "tool", content = "a" },
+    { role = "tool", content = "b" },
+  ] } },
+  { kind = "inbound", event = "chat-end" },
+]

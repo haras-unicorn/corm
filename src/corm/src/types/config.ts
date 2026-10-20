@@ -40,9 +40,15 @@ export const cormConfigZod = z.compile(
     messageTokenLimit: z.number().readonly().optional(),
     // The string that replaces a truncated message's removed middle.
     truncationMarker: z.string().readonly().optional(),
-    // The system message appended next to a truncated user/tool message,
-    // telling the model it can re-read the full content.
+    // The system message appended next to a truncated user/tool message.
     truncationHint: z.string().readonly().optional(),
+    // Bare `<tooling>__<tool>` names whose results bypass `messageTokenLimit`.
+    // Defaults to the known fixed-output tools (`cormFixedOutputTools`); an
+    // empty list truncates every tool result.
+    noTruncateTools: z.array(z.string()).readonly().optional(),
+    // The system message appended next to a truncated result from a
+    // fixed-output tool that was opted back into truncation.
+    fixedOutputTruncationHint: z.string().readonly().optional(),
     // How many past compaction receipts to retain. A receipt is the digest
     // index of one compaction's evicted set, kept so a client that re-offers an
     // evicted message is classified as `compacted` (and not re-added) rather
@@ -99,6 +105,38 @@ export const cormConfigZod = z.compile(
     charsPerToken: z.number().readonly().optional(),
     // Message overhead in tokens for token calculations.
     messageOverheadTokens: z.number().readonly().optional(),
+    // The six-field cron spec (seconds first) for the daily digest job. A
+    // string enables the job; `true` disables it (the test kill switch); absent
+    // also disables it. When the last run is absent or older than
+    // `digestMaxAgeMs`, the job runs immediately at startup instead of waiting
+    // for the next cron fire.
+    digestCron: z.string().or(z.boolean()).readonly().optional(),
+    // The RSS/Atom feed URLs the digest prompt polls.
+    digestFeeds: z.array(z.string()).readonly().optional(),
+    // The digest instruction template. Fills `{{FEEDS}}`, `{{SINCE}}` and
+    // `{{NOW}}`; `{{SINCE}}` is the previous successful digest's start time.
+    digestPrompt: z.string().readonly().optional(),
+    // The lookback window used by the first digest when there is no previous
+    // successful one.
+    digestLookbackMs: z.number().readonly().optional(),
+    // How old the last successful digest may be at startup before the job runs
+    // immediately. Defaults to one day, matching a daily cron.
+    digestMaxAgeMs: z.number().readonly().optional(),
+    // The minimum gap between two digest runs; protects against a catch-up run
+    // that lands immediately before the next cron fire. Defaults to half of
+    // `digestMaxAgeMs`.
+    digestMinGapMs: z.number().readonly().optional(),
+    // Runtime notice shown at the top of the digest prompt.
+    digestStartNotice: z.string().readonly().optional(),
+    // Runtime notice appended when a compacted digest turn resumes.
+    digestResumeNotice: z.string().readonly().optional(),
+    // Runtime notice queued when the digest fires while the turn is busy.
+    digestQueuedNotice: z.string().readonly().optional(),
+    // Runtime notice queued when an endpoint message arrives while the turn is
+    // busy.
+    endpointQueuedNotice: z.string().readonly().optional(),
+    // Runtime notice that heads a recap for a queued endpoint message.
+    endpointRecapNotice: z.string().readonly().optional(),
   }),
 );
 
