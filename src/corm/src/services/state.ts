@@ -1,11 +1,10 @@
-import type { CormConfig } from "corm/types/config";
 import {
   cormStateFile,
   cormStateKey,
   cormSubscriptionsKey,
 } from "../lib/keys";
 import { contentText } from "../lib/tools";
-import type { CormLogger } from "../services/logger";
+import type { CormConfig } from "../types/config";
 import type { CormOmwEvent } from "../types/omw";
 import {
   type CormMemoryState,
@@ -16,6 +15,7 @@ import {
   defaultDisk,
 } from "../types/state";
 import type { CormHandles } from "./handles";
+import type { CormLogger } from "./logger";
 
 export interface CormStateManager {
   load(): CormState;

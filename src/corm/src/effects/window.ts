@@ -47,7 +47,7 @@ export type CormAppendToolResultEffectRule = {
 };
 
 // `enqueue-inbound` parks an endpoint request in the inbox while the turn is
-// busy (a generation is open or a tool call is outstanding), so the drain can
+// busy (a generation is open or a tool call is outstanding), so `pump` can
 // answer it once the machine is idle again. It only mutates state.
 export interface CormEnqueueInboundEffect {
   kind: "enqueue-inbound";

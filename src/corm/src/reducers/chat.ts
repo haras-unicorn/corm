@@ -33,7 +33,7 @@ const onChatDelta = (
     !isGenerationActive(state) ||
     action.id !== state.memory.subscriptions.generation
   ) {
-    return dropped(action, state, config);
+    return dropped(action, state);
   }
 
   if (isTurnCompacting(state)) {
@@ -101,7 +101,7 @@ const onChatEnd = (
     !isGenerationActive(state) ||
     action.id !== state.memory.subscriptions.generation
   ) {
-    return dropped(action, state, config);
+    return dropped(action, state);
   }
 
   if (isGenerationCompacting(state)) {
@@ -365,13 +365,12 @@ const onChatEnd = (
 const onError = (
   action: CormAction & { kind: "error" },
   state: CormState,
-  config: CormConfig,
 ): CormApprovedEffect[] => {
   if (
     !isGenerationActive(state) ||
     action.id !== state.memory.subscriptions.generation
   ) {
-    return dropped(action, state, config);
+    return dropped(action, state);
   }
 
   if (isGenerationCompacting(state)) {
@@ -414,8 +413,8 @@ export const chatReducer = (
     case "chat-end":
       return onChatEnd(action, state, config);
     case "error":
-      return onError(action, state, config);
+      return onError(action, state);
     default:
-      return dropped(action, state, config);
+      return dropped(action, state);
   }
 };

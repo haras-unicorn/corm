@@ -149,11 +149,11 @@ export const endpointReducer = (
       !isGenerationActive(state) ||
       state.disk.window.session !== action.payload.session
     ) {
-      return dropped(action, state, config);
+      return dropped(action, state);
     }
 
     return approveEffects(state, action, { kind: "cancel-generation" });
   }
 
-  return dropped(action, state, config);
+  return dropped(action, state);
 };

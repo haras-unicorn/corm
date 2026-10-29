@@ -1,6 +1,5 @@
 import type { ArrayTail } from "type-fest";
 import { cormToolPrefix } from "../lib/keys";
-import type { CormLogger } from "../services/logger";
 import type { CormConfig } from "../types/config";
 import {
   type CormAnyProviderHandle,
@@ -19,6 +18,7 @@ import {
   isCormProviderName,
   isCormToolingName,
 } from "../types/omw";
+import type { CormLogger } from "./logger";
 
 export interface CormHandlesManager {
   load(): CormHandles;

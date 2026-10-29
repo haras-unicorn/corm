@@ -1,6 +1,5 @@
 import { approveEffects, type CormApprovedEffect } from "../effects";
 import type { CormAction } from "../types/action";
-import type { CormConfig } from "../types/config";
 import type { CormState } from "../types/state";
 
 // The single effect a reducer returns when an event is meaningless in the
@@ -11,6 +10,5 @@ import type { CormState } from "../types/state";
 export const dropped = (
   action: CormAction,
   state: CormState,
-  _config: CormConfig,
 ): CormApprovedEffect[] =>
   approveEffects(state, action, { kind: "noop", dropped: action.kind });

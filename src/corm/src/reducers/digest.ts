@@ -21,7 +21,7 @@ export const digestReducer = (
     action.id !== state.memory.subscriptions.digest?.timer ||
     state.disk.turn.digest
   ) {
-    return dropped(action, state, config);
+    return dropped(action, state);
   }
 
   if (isDigestTooSoon(state.disk.digest.last, now, config)) {

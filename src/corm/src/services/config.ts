@@ -1,8 +1,8 @@
 import { validateConfig } from "../lib/config";
 import { cormConfigKey } from "../lib/keys";
-import type { CormLogger } from "../services/logger";
 import { type CormConfig, cormConfigZod } from "../types/config";
 import type { CormOmw } from "../types/omw";
+import type { CormLogger } from "./logger";
 
 export interface CormConfigManager {
   load(): CormConfig;

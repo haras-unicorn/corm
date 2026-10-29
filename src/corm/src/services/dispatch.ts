@@ -1,4 +1,3 @@
-import { matchTaggedUnionExhaustively } from "corm/types/fns";
 import type { CormApprovedEffect } from "../effects";
 import type {
   CormCommitDigestEffect,
@@ -48,6 +47,7 @@ import {
   windowInput,
 } from "../lib/window";
 import type { CormConfig } from "../types/config";
+import { matchTaggedUnionExhaustively } from "../types/fns";
 import type { CormState } from "../types/state";
 import type { CormHandles } from "./handles";
 import type { CormLogger } from "./logger";
@@ -93,7 +93,7 @@ class CormOmwDispatcher {
   }
 
   public dispatch(effect: CormApprovedEffect): void {
-    this._logger.debug(`dispatching effect ${effect.kind}`);
+    this._logger.trace(`dispatching effect ${effect.kind}`);
 
     matchTaggedUnionExhaustively("kind", effect, {
       "start-chat-generation": () => this._startChatGeneration(),

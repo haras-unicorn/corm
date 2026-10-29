@@ -3,10 +3,10 @@ import {
   CORM_DEFAULT_CHAT_SYSTEM_PROMPT,
   CORM_DEFAULT_PROMPT_PRELUDE,
   CORM_DEFAULT_RUNTIME_SYSTEM_PROMPT,
-} from "corm/lib/defaults";
-import { recomputeMessage, systemMessage } from "corm/lib/messages";
-import { cormTools } from "corm/lib/tools";
-import { recount } from "corm/lib/window";
+} from "../lib/defaults";
+import { recomputeMessage, systemMessage } from "../lib/messages";
+import { cormTools } from "../lib/tools";
+import { recount } from "../lib/window";
 import type { CormConfig } from "./config";
 import { cormInboxZod } from "./inbox";
 import type { CormOmwTool } from "./omw";

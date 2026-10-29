@@ -18,16 +18,16 @@ export const toolReducer = (
   config: CormConfig,
 ): CormApprovedEffect[] => {
   if (action.kind !== "tool-result" && action.kind !== "error") {
-    return dropped(action, state, config);
+    return dropped(action, state);
   }
 
   const pending = state.disk.turn.awaiting[action.id];
   if (pending === undefined) {
-    return dropped(action, state, config);
+    return dropped(action, state);
   }
 
   if (!isGenerationFree(state)) {
-    return dropped(action, state, config);
+    return dropped(action, state);
   }
 
   const result =

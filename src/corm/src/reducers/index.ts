@@ -1,4 +1,4 @@
-import { matchTaggedUnionExhaustively } from "corm/types/fns";
+import { matchTaggedUnionExhaustively } from "../types/fns";
 import type { CormReducer } from "../types/reducer";
 import { chatReducer } from "./chat";
 import { digestReducer } from "./digest";
@@ -18,9 +18,9 @@ export const reduce: CormReducer = (action, state, config, now = 0) =>
         : chatReducer(event, state, config),
     timer: (event) => digestReducer(event, state, config, now),
     "tool-result": (event) => toolReducer(event, state, config),
-    message: (event) => dropped(event, state, config),
-    reload: (event) => dropped(event, state, config),
-    shutdown: (event) => dropped(event, state, config),
-    "resource-list-updated": (event) => dropped(event, state, config),
-    "resource-updated": (event) => dropped(event, state, config),
+    message: (event) => dropped(event, state),
+    reload: (event) => dropped(event, state),
+    shutdown: (event) => dropped(event, state),
+    "resource-list-updated": (event) => dropped(event, state),
+    "resource-updated": (event) => dropped(event, state),
   });
